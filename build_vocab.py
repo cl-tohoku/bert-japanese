@@ -13,6 +13,7 @@ CONTROL_SYMBOLS = ["[PAD]", "[CLS]", "[SEP]", "[MASK]"]
 
 
 def main(args):
+    tf.logging.set_verbosity(tf.logging.INFO)
     tokenizer = JapaneseBasicTokenizer(args.do_lower_case, args.mecab_dict)
     with tempfile.TemporaryDirectory() as tempdir:
         # read input files and write to a temporary file
