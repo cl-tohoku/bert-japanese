@@ -29,7 +29,7 @@ def main(args):
         tf.logging.info("Training a SentencePiece model")
         commands = {
             "input": concat_input_file.name,
-            "model_type": "bpm",
+            "model_type": "bpe",
             "model_prefix": os.path.join(tempdir, "sentencepiece"),
             "vocab_size": args.vocab_size,
             "control_symbols": ",".join(CONTROL_SYMBOLS),
