@@ -8,7 +8,7 @@ import tensorflow as tf
 from tokenization import JapaneseBasicTokenizer
 
 
-CONTROL_SYMBOLS = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
+CONTROL_SYMBOLS = ["[CLS]", "[SEP]", "[MASK]"]
 
 
 def main(args):
@@ -31,6 +31,10 @@ def main(args):
             "model_type": "bpe",
             "model_prefix": os.path.join(tempdir, "sentencepiece"),
             "vocab_size": args.vocab_size,
+            "pad_id": 0,
+            "unk_id": 1,
+            "bos_id": -1,
+            "eos_id": -1,
             "control_symbols": ",".join(CONTROL_SYMBOLS),
             "input_sentence_size": args.sentence_size,
             "shuffle_input_sentence": "true"
@@ -44,8 +48,11 @@ def main(args):
              tf.gfile.GFile(args.output_file, "w") as output_file:
             for line in vocab_file:
                 sp_token, _ = line.rstrip("\n").split("\t")
-                if sp_token in CONTROL_SYMBOLS:
-                    # e.g. "[MASK]" -> "[MASK]"
+                if sp_token == "<pad>":
+                    wp_token = "[PAD]"
+                elif sp_token == "<unk>":
+                    wp_token = "[UNK]"
+                elif sp_token in CONTROL_SYMBOLS:
                     wp_token = sp_token
                 elif sp_token.startswith("\u2581"):
                     # e.g. "▁word" -> "word"
