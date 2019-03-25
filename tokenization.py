@@ -114,23 +114,11 @@ class JapaneseBasicTokenizer(object):
         for token in orig_tokens:
             if self.do_lower_case:
                 token = token.lower()
-                token = self._run_strip_accents(token)
 
             split_tokens.extend(self._run_split_on_punc(token))
 
         output_tokens = whitespace_tokenize(" ".join(split_tokens))
         return output_tokens
-
-    def _run_strip_accents(self, text):
-        """Strips accents from a piece of text."""
-        text = unicodedata.normalize("NFD", text)
-        output = []
-        for char in text:
-            cat = unicodedata.category(char)
-            if cat == "Mn":
-                continue
-            output.append(char)
-        return "".join(output)
 
     def _run_split_on_punc(self, text):
         """Splits punctuation on a piece of text."""
