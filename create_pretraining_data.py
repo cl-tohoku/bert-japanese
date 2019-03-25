@@ -74,14 +74,12 @@ class TrainingInstance(object):
 
   def __str__(self):
     s = ""
-    s += "tokens: %s\n" % (" ".join(
-        [tokenization.printable_text(x) for x in self.tokens]))
+    s += "tokens: %s\n" % (" ".join(self.tokens))
     s += "segment_ids: %s\n" % (" ".join([str(x) for x in self.segment_ids]))
     s += "is_random_next: %s\n" % self.is_random_next
     s += "masked_lm_positions: %s\n" % (" ".join(
         [str(x) for x in self.masked_lm_positions]))
-    s += "masked_lm_labels: %s\n" % (" ".join(
-        [tokenization.printable_text(x) for x in self.masked_lm_labels]))
+    s += "masked_lm_labels: %s\n" % (" ".join(self.masked_lm_labels))
     s += "\n"
     return s
 
@@ -143,8 +141,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
     if inst_index < 20:
       tf.logging.info("*** Example ***")
-      tf.logging.info("tokens: %s" % " ".join(
-          [tokenization.printable_text(x) for x in instance.tokens]))
+      tf.logging.info("tokens: %s" % " ".join(instance.tokens))
 
       for feature_name in features.keys():
         feature = features[feature_name]
@@ -187,7 +184,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
   for input_file in input_files:
     with tf.gfile.GFile(input_file, "r") as reader:
       while True:
-        line = tokenization.convert_to_unicode(reader.readline())
+        line = reader.readline()
         if not line:
           break
         line = line.strip()
