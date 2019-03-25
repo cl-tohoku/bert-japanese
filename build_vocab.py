@@ -22,7 +22,7 @@ def main(args):
             with tf.gfile.GFile(input_file, "r") as reader:
                 tf.logging.info(f"Reading {input_file}")
                 for line in reader:
-                    tokens = tokenizer.tokenize(line.strip('\n'))
+                    tokens = tokenizer.tokenize(line.strip("\n"))
                     print(" ".join(tokens), file=concat_input_file)
 
         # train a SentencePiece model and store the vocabulary file to a temp directory
@@ -42,7 +42,7 @@ def main(args):
 
         # convert SentencePiece vocabulary into WordPiece format that is used in BERT
         with open(os.path.join(tempdir, "sentencepiece.vocab")) as vocab_file, \
-             tf.gfile.GFile(args.output_file, "wt") as output_file:
+             tf.gfile.GFile(args.output_file, "w") as output_file:
             for line in vocab_file:
                 sp_token, _ = line.rstrip("\n").split("\t")
                 if sp_token in SPECIAL_SYMBOLS + CONTROL_SYMBOLS:
