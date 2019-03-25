@@ -8,8 +8,7 @@ import tensorflow as tf
 from tokenization import JapaneseBasicTokenizer
 
 
-SPECIAL_SYMBOLS = ["<unk>", "<s>", "</s>"]
-CONTROL_SYMBOLS = ["[PAD]", "[CLS]", "[SEP]", "[MASK]"]
+CONTROL_SYMBOLS = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
 
 
 def main(args):
@@ -45,7 +44,7 @@ def main(args):
              tf.gfile.GFile(args.output_file, "w") as output_file:
             for line in vocab_file:
                 sp_token, _ = line.rstrip("\n").split("\t")
-                if sp_token in SPECIAL_SYMBOLS + CONTROL_SYMBOLS:
+                if sp_token in CONTROL_SYMBOLS:
                     # e.g. "[MASK]" -> "[MASK]"
                     wp_token = sp_token
                 elif sp_token.startswith("\u2581"):
