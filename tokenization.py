@@ -50,11 +50,13 @@ def whitespace_tokenize(text):
 class JapaneseBertTokenizer(object):
     """Runs end-to-end tokenization: punctuation splitting + wordpiece"""
 
-    def __init__(self, vocab_file, do_lower_case=True, mecab_dict=None):
+    def __init__(self, vocab_file,
+                 vocab_type="bpe", do_lower_case=True, mecab_dict=None):
         """Constructs a BertTokenizer.
 
         Args:
-            vocab_file: Path to a one-wordpiece-per-line vocabulary file
+            vocab_file: Path to a one-wordpiece-per-line vocabulary file.
+            vocab_type: Subword vocabulary type ("bpe" or "char").
             do_lower_case: Whether to lower case the input.
             mecab_dict: Path to MeCab custom dictionary.
         """
@@ -62,12 +64,17 @@ class JapaneseBertTokenizer(object):
         self.vocab = load_vocab(vocab_file)
         self.inv_vocab = {v: k for k, v in self.vocab.items()}
         self.basic_tokenizer = JapaneseBasicTokenizer(do_lower_case, mecab_dict)
-        self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab)
+        if vocab_type == "bpe":
+            self.subword_tokenizer = WordpieceTokenizer(vocab=self.vocab)
+        elif vocab_type == "char":
+            self.subword_tokenizer = CharacterTokenizer(vocab=self.vocab)
+        else:
+            raise RuntimeError(f"Invalid vocab_type {vocab_type} is specified.")
 
-    def tokenize(self, text):
+    def tokenize(self, text, with_flags=False):
         split_tokens = []
-        for token in self.basic_tokenizer.tokenize(text):
-            for sub_token in self.wordpiece_tokenizer.tokenize(token):
+        for tokenized_text in self.basic_tokenizer.tokenize(text):
+            for sub_token in self.subword_tokenizer.tokenize(tokenized_text, with_flags):
                 split_tokens.append(sub_token)
 
         return split_tokens
@@ -168,7 +175,7 @@ class WordpieceTokenizer(object):
         self.unk_token = unk_token
         self.max_input_chars_per_word = max_input_chars_per_word
 
-    def tokenize(self, text):
+    def tokenize(self, text, with_flags=False):
         """Tokenizes a piece of text into its word pieces.
 
         This uses a greedy longest-match-first algorithm to perform tokenization
@@ -181,6 +188,8 @@ class WordpieceTokenizer(object):
         Args:
             text: A single token or whitespace separated tokens. This should have
                 already been passed through `JapaneseBasicTokenizer`.
+            with_flags: If set to True, flags indicating whether each token in the
+                beginnging of a word is returned, as well as list of tokens.
 
         Returns:
             A list of wordpiece tokens.
@@ -190,7 +199,11 @@ class WordpieceTokenizer(object):
         for token in whitespace_tokenize(text):
             chars = list(token)
             if len(chars) > self.max_input_chars_per_word:
-                output_tokens.append(self.unk_token)
+                if with_flags:
+                    output_tokens.append((self.unk_token, 1))
+                else:
+                    output_tokens.append(self.unk_token)
+
                 continue
 
             is_bad = False
@@ -214,13 +227,71 @@ class WordpieceTokenizer(object):
                     is_bad = True
                     break
 
-                sub_tokens.append(cur_substr)
+                if with_flags:
+                    sub_tokens.append((cur_substr, int(start == 0)))
+                else:
+                    sub_tokens.append(cur_substr)
+
                 start = end
 
             if is_bad:
-                output_tokens.append(self.unk_token)
+                if with_flags:
+                    output_tokens.append((self.unk_token, 1))
+                else:
+                    output_tokens.append(self.unk_token)
             else:
                 output_tokens.extend(sub_tokens)
+
+        return output_tokens
+
+
+class CharacterTokenizer(object):
+    """Runs Character tokenization."""
+
+    def __init__(self, vocab, unk_token="[UNK]", max_input_chars_per_word=200):
+        self.vocab = vocab
+        self.unk_token = unk_token
+        self.max_input_chars_per_word = max_input_chars_per_word
+
+    def tokenize(self, text, with_flags=False):
+        """Tokenizes a piece of text into its characters.
+
+        For example:
+            input = "東北 大学"
+            output = ["東", "北", "大", "学"]
+
+        Args:
+            text: A single token or whitespace separated tokens. This should have
+                already been passed through `JapaneseBasicTokenizer`.
+            with_flags: If set to True, flags indicating whether each token in the
+                beginnging of a word is returned, as well as list of tokens.
+
+        Returns:
+            A list of character tokens.
+        """
+
+        output_tokens = []
+        for token in whitespace_tokenize(text):
+            chars = list(token)
+            if len(chars) > self.max_input_chars_per_word:
+                if with_flags:
+                    output_tokens.append((self.unk_token, 1))
+                else:
+                    output_tokens.append(self.unk_token)
+
+                continue
+
+            for i, char in enumerate(chars):
+                if char in self.vocab:
+                    if with_flags:
+                        output_tokens.append((char, int(i == 0)))
+                    else:
+                        output_tokens.append(char)
+                else:
+                    if with_flags:
+                        output_tokens.append((self.unk_token, int(i == 0)))
+                    else:
+                        output_tokens.append(self.unk_token)
 
         return output_tokens
 

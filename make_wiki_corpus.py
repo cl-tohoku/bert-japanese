@@ -81,8 +81,9 @@ def main(args):
             text = json_obj.get("text") or ""
             text = preprocess_text(text, title)
             sentences = [postprocess_text(sent) for sent in sent_splitter(text)]
-            # ignore short sentences
-            sentences = [sent for sent in sentences if len(sent) >= args.min_length]
+            # ignore too short/long sentences
+            sentences = [sent for sent in sentences
+                         if args.min_length <= len(sent) <= args.max_length]
 
             if sentences:
                 # open a new file at certain intervals
@@ -124,6 +125,8 @@ if __name__ == "__main__":
         help="limit document size by number of incoming links [1]")
     parser.add_argument("--min_length", type=int, default=20,
         help="only extract sentences with N+ characters [20]")
+    parser.add_argument("--max_length", type=int, default=1000,
+        help="only extract sentences with N+ characters [1000]")
     parser.add_argument("--mecab_dict", type=str,
         help="path to MeCab dictionary")
     parser.add_argument("--debug", action="store_true")

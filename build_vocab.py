@@ -28,7 +28,7 @@ def main(args):
         tf.logging.info("Training a SentencePiece model")
         commands = {
             "input": concat_input_file.name,
-            "model_type": "bpe",
+            "model_type": args.vocab_type,
             "model_prefix": os.path.join(tempdir, "sentencepiece"),
             "vocab_size": args.vocab_size,
             "pad_id": 0,
@@ -57,9 +57,11 @@ def main(args):
                 elif sp_token.startswith("\u2581"):
                     # e.g. "▁word" -> "word"
                     wp_token = sp_token[1:]
-                else:
+                elif args.vocab_type == 'bpe':
                     # e.g. "tion" -> "##tion"
                     wp_token = "##" + sp_token
+                else:
+                    wp_token = sp_token
 
                 output_file.write(f"{wp_token}\n")
 
@@ -70,6 +72,8 @@ if __name__ == "__main__":
         help="Input raw text file (or comma-separated list of files).")
     parser.add_argument("output_file", type=str,
         help="Output vocabulary file.")
+    parser.add_argument("--vocab_type", choices=("bpe", "char"), default="bpe",
+        help='Subword vocabulary type ("bpe" or "char"). [bpe]')
     parser.add_argument("--vocab_size", type=int, default=32000,
         help="WordPiece vocabulary size. [32000]")
     parser.add_argument("--sentence_size", type=int, default=1000000,

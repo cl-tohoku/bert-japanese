@@ -37,6 +37,9 @@ flags.DEFINE_string(
 flags.DEFINE_string("vocab_file", None,
                     "The vocabulary file that the BERT model was trained on.")
 
+flags.DEFINE_string("vocab_type", "bpe",
+                    'Subword vocabulary type ("bpe" or "char").')
+
 flags.DEFINE_bool(
     "do_lower_case", True,
     "Whether to lower case the input text. Should be True for uncased "
@@ -46,6 +49,9 @@ flags.DEFINE_integer("max_seq_length", 128, "Maximum sequence length.")
 
 flags.DEFINE_integer("max_predictions_per_seq", 20,
                      "Maximum number of masked LM predictions per sequence.")
+
+flags.DEFINE_bool("do_mask_words", False,
+                  "Mask a chunk of tokens with in a word for LM predictions.")
 
 flags.DEFINE_integer("random_seed", 12345, "Random seed for data generation.")
 
@@ -170,8 +176,8 @@ def create_float_feature(values):
 
 
 def create_training_instances(input_files, tokenizer, max_seq_length,
-                              dupe_factor, short_seq_prob, masked_lm_prob,
-                              max_predictions_per_seq, rng):
+                              dupe_factor, short_seq_prob, do_mask_words,
+                              masked_lm_prob, max_predictions_per_seq, rng):
   """Create `TrainingInstance`s from raw text."""
   all_documents = [[]]
 
@@ -192,9 +198,9 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
         # Empty lines are used as document delimiters
         if not line:
           all_documents.append([])
-        tokens = tokenizer.tokenize(line)
-        if tokens:
-          all_documents[-1].append(tokens)
+        token_flag_pairs = tokenizer.tokenize(line, with_flags=True)
+        if token_flag_pairs:
+          all_documents[-1].append(token_flag_pairs)
 
   # Remove empty documents
   all_documents = [x for x in all_documents if x]
@@ -207,7 +213,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
       instances.extend(
           create_instances_from_document(
               all_documents, document_index, max_seq_length, short_seq_prob,
-              masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
+              do_mask_words, masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
 
   rng.shuffle(instances)
   return instances
@@ -215,7 +221,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
 def create_instances_from_document(
     all_documents, document_index, max_seq_length, short_seq_prob,
-    masked_lm_prob, max_predictions_per_seq, vocab_words, rng):
+    do_mask_words, masked_lm_prob, max_predictions_per_seq, vocab_words, rng):
   """Creates `TrainingInstance`s for a single document."""
   document = all_documents[document_index]
 
@@ -254,16 +260,16 @@ def create_instances_from_document(
         if len(current_chunk) >= 2:
           a_end = rng.randint(1, len(current_chunk) - 1)
 
-        tokens_a = []
+        token_flag_pairs_a = []
         for j in range(a_end):
-          tokens_a.extend(current_chunk[j])
+          token_flag_pairs_a.extend(current_chunk[j])
 
-        tokens_b = []
+        token_flag_pairs_b = []
         # Random next
         is_random_next = False
         if len(current_chunk) == 1 or rng.random() < 0.5:
           is_random_next = True
-          target_b_length = target_seq_length - len(tokens_a)
+          target_b_length = target_seq_length - len(token_flag_pairs_a)
 
           # This should rarely go for more than one iteration for large
           # corpora. However, just to be careful, we try to make sure that
@@ -277,8 +283,8 @@ def create_instances_from_document(
           random_document = all_documents[random_document_index]
           random_start = rng.randint(0, len(random_document) - 1)
           for j in range(random_start, len(random_document)):
-            tokens_b.extend(random_document[j])
-            if len(tokens_b) >= target_b_length:
+            token_flag_pairs_b.extend(random_document[j])
+            if len(token_flag_pairs_b) >= target_b_length:
               break
           # We didn't actually use these segments so we "put them back" so
           # they don't go to waste.
@@ -288,32 +294,33 @@ def create_instances_from_document(
         else:
           is_random_next = False
           for j in range(a_end, len(current_chunk)):
-            tokens_b.extend(current_chunk[j])
-        truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng)
+            token_flag_pairs_b.extend(current_chunk[j])
+        truncate_seq_pair(token_flag_pairs_a, token_flag_pairs_b, max_num_tokens, rng)
 
-        assert len(tokens_a) >= 1
-        assert len(tokens_b) >= 1
+        assert len(token_flag_pairs_a) >= 1
+        assert len(token_flag_pairs_b) >= 1
 
-        tokens = []
+        token_flag_pairs = []
         segment_ids = []
-        tokens.append("[CLS]")
+        token_flag_pairs.append(("[CLS]", 1))
         segment_ids.append(0)
-        for token in tokens_a:
-          tokens.append(token)
+        for token_and_flag in token_flag_pairs_a:
+          token_flag_pairs.append(token_and_flag)
           segment_ids.append(0)
 
-        tokens.append("[SEP]")
+        token_flag_pairs.append(("[SEP]", 1))
         segment_ids.append(0)
 
-        for token in tokens_b:
-          tokens.append(token)
+        for token_and_flag in token_flag_pairs_b:
+          token_flag_pairs.append(token_and_flag)
           segment_ids.append(1)
-        tokens.append("[SEP]")
+        token_flag_pairs.append(("[SEP]", 1))
         segment_ids.append(1)
 
         (tokens, masked_lm_positions,
          masked_lm_labels) = create_masked_lm_predictions(
-             tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+            token_flag_pairs, do_mask_words,
+            masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
         instance = TrainingInstance(
             tokens=tokens,
             segment_ids=segment_ids,
@@ -332,47 +339,55 @@ MaskedLmInstance = collections.namedtuple("MaskedLmInstance",
                                           ["index", "label"])
 
 
-def create_masked_lm_predictions(tokens, masked_lm_prob,
+def create_masked_lm_predictions(token_flag_pairs, do_mask_words, masked_lm_prob,
                                  max_predictions_per_seq, vocab_words, rng):
   """Creates the predictions for the masked LM objective."""
 
-  cand_indexes = []
-  for (i, token) in enumerate(tokens):
+  cand_index_seqs = [[]]
+  for (i, token_and_flag) in enumerate(token_flag_pairs):
+    token, flag = token_and_flag
     if token == "[CLS]" or token == "[SEP]":
       continue
-    cand_indexes.append(i)
+    elif flag == 1 or not do_mask_words:
+      cand_index_seqs.append([i])
+    else:
+      assert cand_index_seqs, token_flag_pairs
+      cand_index_seqs[-1].append(i)
 
-  rng.shuffle(cand_indexes)
+  cand_index_seqs = [x for x in cand_index_seqs if x]
 
-  output_tokens = list(tokens)
+  rng.shuffle(cand_index_seqs)
+
+  output_tokens = [token for token, _ in token_flag_pairs]
 
   num_to_predict = min(max_predictions_per_seq,
-                       max(1, int(round(len(tokens) * masked_lm_prob))))
+                       max(1, int(round(len(token_flag_pairs) * masked_lm_prob))))
 
   masked_lms = []
   covered_indexes = set()
-  for index in cand_indexes:
+  for index_seq in cand_index_seqs:
     if len(masked_lms) >= num_to_predict:
       break
-    if index in covered_indexes:
+    if any(index in covered_indexes for index in index_seq):
       continue
-    covered_indexes.add(index)
+    covered_indexes.update(index_seq)
 
-    masked_token = None
+    masked_tokens = None
     # 80% of the time, replace with [MASK]
     if rng.random() < 0.8:
-      masked_token = "[MASK]"
+      masked_tokens = ["[MASK]"] * len(index_seq)
     else:
       # 10% of the time, keep original
       if rng.random() < 0.5:
-        masked_token = tokens[index]
+        masked_tokens = [token_flag_pairs[index][0] for index in index_seq]
       # 10% of the time, replace with random word
       else:
-        masked_token = vocab_words[rng.randint(0, len(vocab_words) - 1)]
+        masked_tokens = [vocab_words[rng.randint(0, len(vocab_words) - 1)]
+                         for _ in index_seq]
 
-    output_tokens[index] = masked_token
-
-    masked_lms.append(MaskedLmInstance(index=index, label=tokens[index]))
+    for index, masked_token in zip(index_seq, masked_tokens):
+      output_tokens[index] = masked_token
+      masked_lms.append(MaskedLmInstance(index=index, label=token_flag_pairs[index][0]))
 
   masked_lms = sorted(masked_lms, key=lambda x: x.index)
 
@@ -407,7 +422,8 @@ def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
   tokenizer = tokenization.JapaneseBertTokenizer(
-      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+      vocab_file=FLAGS.vocab_file, vocab_type=FLAGS.vocab_type,
+      do_lower_case=FLAGS.do_lower_case)
 
   input_files = []
   for input_pattern in FLAGS.input_file.split(","):
@@ -420,8 +436,8 @@ def main(_):
   rng = random.Random(FLAGS.random_seed)
   instances = create_training_instances(
       input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
-      FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
-      rng)
+      FLAGS.short_seq_prob, FLAGS.do_mask_words, FLAGS.masked_lm_prob,
+      FLAGS.max_predictions_per_seq, rng)
 
   output_files = FLAGS.output_file.split(",")
   tf.logging.info("*** Writing to output files ***")
