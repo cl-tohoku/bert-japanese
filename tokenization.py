@@ -121,11 +121,17 @@ class JapaneseBasicTokenizer(object):
         for token in orig_tokens:
             if self.do_lower_case:
                 token = token.lower()
+                token = self._normalize_text(token)
 
             split_tokens.extend(self._run_split_on_punc(token))
 
         output_tokens = whitespace_tokenize(" ".join(split_tokens))
         return output_tokens
+
+    def _normalize_text(self, text):
+        """Apply NFKC normalization to a text."""
+        text = unicodedata.normalize("NFKC", text)
+        return text
 
     def _run_split_on_punc(self, text):
         """Splits punctuation on a piece of text."""

@@ -28,8 +28,9 @@ def main(args):
         tf.logging.info("Training a SentencePiece model")
         commands = {
             "input": concat_input_file.name,
-            "model_type": args.vocab_type,
             "model_prefix": os.path.join(tempdir, "sentencepiece"),
+            "model_type": args.vocab_type,
+            "normalization_rule_name": "identity",
             "vocab_size": args.vocab_size,
             "pad_id": 0,
             "unk_id": 1,
