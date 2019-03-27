@@ -115,13 +115,13 @@ class JapaneseBasicTokenizer(object):
     def tokenize(self, text):
         """Tokenizes a piece of text."""
         text = self._clean_text(text)
+        text = self._normalize_text(text)
         text = self._tokenize_japanese_words(text)
         orig_tokens = whitespace_tokenize(text)
         split_tokens = []
         for token in orig_tokens:
             if self.do_lower_case:
                 token = token.lower()
-                token = self._normalize_text(token)
 
             split_tokens.extend(self._run_split_on_punc(token))
 
