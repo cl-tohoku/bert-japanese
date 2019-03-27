@@ -45,6 +45,8 @@ flags.DEFINE_bool(
     "Whether to lower case the input text. Should be True for uncased "
     "models and False for cased models.")
 
+flags.DEFINE_string("mecab_dict", None, "Path to MeCab dictionary.")
+
 flags.DEFINE_integer("max_seq_length", 128, "Maximum sequence length.")
 
 flags.DEFINE_integer("max_predictions_per_seq", 20,
@@ -423,7 +425,7 @@ def main(_):
 
   tokenizer = tokenization.JapaneseBertTokenizer(
       vocab_file=FLAGS.vocab_file, vocab_type=FLAGS.vocab_type,
-      do_lower_case=FLAGS.do_lower_case)
+      do_lower_case=FLAGS.do_lower_case, mecab_dict=FLAGS.mecab_dict)
 
   input_files = []
   for input_pattern in FLAGS.input_file.split(","):
