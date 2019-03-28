@@ -368,7 +368,7 @@ def create_masked_lm_predictions(token_flag_pairs, do_mask_words, masked_lm_prob
   masked_lms = []
   covered_indexes = set()
   for index_seq in cand_index_seqs:
-    if len(masked_lms) >= num_to_predict:
+    if len(masked_lms) + len(index_seq) > num_to_predict:
       break
     if any(index in covered_indexes for index in index_seq):
       continue
