@@ -1,5 +1,6 @@
 # coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors and The HuggingFace Inc. team.
+# Copyright 2019 The Google AI Language Team Authors and Masatoshi Suzuki.
+# Copyright (c) 2018, NVIDIA CORPORATION.  All rights reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,26 +13,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-"""Tokenization classes."""
+#
+# This file is based on the following files:
+# [1] https://github.com/google-research/bert/blob/master/tokenization.py
+"""Tokenization classes for BERT Japanese models."""
 
 import collections
+import logging
+import os
 import unicodedata
 
-import MeCab
 import tensorflow as tf
+
+
+logger = logging.getLogger(__name__)
 
 
 def load_vocab(vocab_file):
     """Loads a vocabulary file into a dictionary."""
     vocab = collections.OrderedDict()
     index = 0
-    with tf.gfile.GFile(vocab_file, "r") as reader:
-        while True:
-            token = reader.readline()
-            if not token:
-                break
-
-            token = token.strip()
+    with tf.gfile.GFile(vocab_file, 'r') as reader:
+        for line in reader:
+            token = line.strip()
             vocab[token] = index
             index += 1
 
@@ -43,160 +47,70 @@ def whitespace_tokenize(text):
     text = text.strip()
     if not text:
         return []
+
     tokens = text.split()
     return tokens
 
 
-class JapaneseBertTokenizer(object):
-    """Runs end-to-end tokenization: punctuation splitting + wordpiece"""
+class MecabBasicTokenizer(object):
+    """Runs basic tokenization with MeCab morphological parser."""
 
-    def __init__(self, vocab_file,
-                 vocab_type="bpe", do_lower_case=True, mecab_dict=None):
-        """Constructs a BertTokenizer.
-
-        Args:
-            vocab_file: Path to a one-wordpiece-per-line vocabulary file.
-            vocab_type: Subword vocabulary type ("bpe" or "char").
-            do_lower_case: Whether to lower case the input.
-            mecab_dict: Path to MeCab custom dictionary.
-        """
-
-        self.vocab = load_vocab(vocab_file)
-        self.inv_vocab = {v: k for k, v in self.vocab.items()}
-        self.basic_tokenizer = JapaneseBasicTokenizer(do_lower_case, mecab_dict)
-        if vocab_type == "bpe":
-            self.subword_tokenizer = WordpieceTokenizer(vocab=self.vocab)
-        elif vocab_type == "char":
-            self.subword_tokenizer = CharacterTokenizer(vocab=self.vocab)
-        else:
-            raise RuntimeError(f"Invalid vocab_type {vocab_type} is specified.")
-
-    def tokenize(self, text, with_flags=False):
-        split_tokens = []
-        for tokenized_text in self.basic_tokenizer.tokenize(text):
-            for sub_token in self.subword_tokenizer.tokenize(tokenized_text, with_flags):
-                split_tokens.append(sub_token)
-
-        return split_tokens
-
-    def convert_tokens_to_ids(self, tokens):
-        """Converts a sequence of wordpiece tokens into ids using the vocab."""
-        ids = []
-        for token in tokens:
-            ids.append(self.vocab[token])
-
-        return ids
-
-    def convert_ids_to_tokens(self, ids):
-        """Converts a sequence of wordpiece ids into tokens using the vocab."""
-        tokens = []
-        for i in ids:
-            tokens.append(self.inv_vocab[i])
-
-        return tokens
-
-
-class JapaneseBasicTokenizer(object):
-    """Runs basic tokenization (such as lower casing) and Japanese tokenization."""
-
-    def __init__(self, do_lower_case=True, mecab_dict=None):
+    def __init__(self, do_lower_case=False, dict_path=None):
         """Constructs a BasicTokenizer.
-
         Args:
             do_lower_case: Whether to lower case the input.
-            mecab_dict: Path to MeCab custom dictionary.
         """
+
         self.do_lower_case = do_lower_case
-        if mecab_dict is not None:
-            self.mecab_tagger = MeCab.Tagger(f"-d {mecab_dict} -O wakati")
+        self.dict_path = dict_path
+        import MeCab
+        if dict_path:
+            self.mecab = MeCab.Tagger(f'-d {dict_path}')
         else:
-            self.mecab_tagger = MeCab.Tagger("-O wakati")
+            self.mecab = MeCab.Tagger()
 
     def tokenize(self, text):
         """Tokenizes a piece of text."""
-        text = self._clean_text(text)
-        text = self._normalize_text(text)
-        text = self._tokenize_japanese_words(text)
-        orig_tokens = whitespace_tokenize(text)
-        split_tokens = []
-        for token in orig_tokens:
+
+        tokens = []
+        token_infos = []
+        for line in self.mecab.parse(text).split('\n'):
+            if line == 'EOS':
+                break
+
+            token, token_info = line.split('\t')
+            token = token.strip()
+            if not token:
+                continue
+
             if self.do_lower_case:
                 token = token.lower()
 
-            split_tokens.extend(self._run_split_on_punc(token))
+            tokens.append(token)
+            token_infos.append(token_info)
 
-        output_tokens = whitespace_tokenize(" ".join(split_tokens))
-        return output_tokens
-
-    def _normalize_text(self, text):
-        """Apply NFKC normalization to a text."""
-        text = unicodedata.normalize("NFKC", text)
-        return text
-
-    def _run_split_on_punc(self, text):
-        """Splits punctuation on a piece of text."""
-        chars = list(text)
-        i = 0
-        start_new_word = True
-        output = []
-        while i < len(chars):
-            char = chars[i]
-            if _is_punctuation(char):
-                output.append([char])
-                start_new_word = True
-            else:
-                if start_new_word:
-                    output.append([])
-                start_new_word = False
-                output[-1].append(char)
-            i += 1
-
-        return ["".join(x) for x in output]
-
-    def _tokenize_japanese_words(self, text):
-        """Split Japanese text into tokens with whitespaces using MeCab."""
-        tokenized_text = self.mecab_tagger.parse(text)
-        tokenized_text = tokenized_text.strip()
-        return tokenized_text
-
-    def _clean_text(self, text):
-        """Performs invalid character removal and whitespace cleanup on text."""
-        output = []
-        for char in text:
-            cp = ord(char)
-            if cp == 0 or cp == 0xfffd or _is_control(char):
-                continue
-            if _is_whitespace(char):
-                output.append(" ")
-            else:
-                output.append(char)
-        return "".join(output)
+        assert len(tokens) == len(token_infos)
+        return tokens, token_infos
 
 
 class WordpieceTokenizer(object):
-    """Runs WordPiece tokenization."""
+    """Runs WordPiece tokenziation."""
 
-    def __init__(self, vocab, unk_token="[UNK]", max_input_chars_per_word=200):
+    def __init__(self, vocab, unk_token='[UNK]', max_input_chars_per_word=200):
         self.vocab = vocab
         self.unk_token = unk_token
         self.max_input_chars_per_word = max_input_chars_per_word
 
-    def tokenize(self, text, with_flags=False):
+    def tokenize(self, text):
         """Tokenizes a piece of text into its word pieces.
-
         This uses a greedy longest-match-first algorithm to perform tokenization
         using the given vocabulary.
-
         For example:
             input = "unaffable"
             output = ["un", "##aff", "##able"]
-
         Args:
             text: A single token or whitespace separated tokens. This should have
-                already been passed through `JapaneseBasicTokenizer`.
-            with_flags: If set to True, flags indicating whether each token in the
-                beginnging of a word is returned, as well as list of tokens.
-
+                already been passed through `BasicTokenizer.
         Returns:
             A list of wordpiece tokens.
         """
@@ -205,11 +119,7 @@ class WordpieceTokenizer(object):
         for token in whitespace_tokenize(text):
             chars = list(token)
             if len(chars) > self.max_input_chars_per_word:
-                if with_flags:
-                    output_tokens.append((self.unk_token, 1))
-                else:
-                    output_tokens.append(self.unk_token)
-
+                output_tokens.append(self.unk_token)
                 continue
 
             is_bad = False
@@ -233,116 +143,131 @@ class WordpieceTokenizer(object):
                     is_bad = True
                     break
 
-                if with_flags:
-                    sub_tokens.append((cur_substr, int(start == 0)))
-                else:
-                    sub_tokens.append(cur_substr)
-
+                sub_tokens.append(cur_substr)
                 start = end
 
             if is_bad:
-                if with_flags:
-                    output_tokens.append((self.unk_token, 1))
-                else:
-                    output_tokens.append(self.unk_token)
+                output_tokens.append(self.unk_token)
             else:
                 output_tokens.extend(sub_tokens)
 
         return output_tokens
 
 
-class CharacterTokenizer(object):
-    """Runs Character tokenization."""
+class MecabBertTokenizer(object):
+    """Runs end-to-end tokenization: MeCab tokenization + wordpiece"""
 
-    def __init__(self, vocab, unk_token="[UNK]", max_input_chars_per_word=200):
-        self.vocab = vocab
-        self.unk_token = unk_token
-        self.max_input_chars_per_word = max_input_chars_per_word
-
-    def tokenize(self, text, with_flags=False):
-        """Tokenizes a piece of text into its characters.
-
-        For example:
-            input = "東北 大学"
-            output = ["東", "北", "大", "学"]
-
+    def __init__(self, vocab_file, do_lower_case=False, dict_path=None,
+                 never_split=('[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]')):
+        """Constructs a BertTokenizer.
         Args:
-            text: A single token or whitespace separated tokens. This should have
-                already been passed through `JapaneseBasicTokenizer`.
-            with_flags: If set to True, flags indicating whether each token in the
-                beginnging of a word is returned, as well as list of tokens.
-
-        Returns:
-            A list of character tokens.
+            vocab_file: Path to a one-wordpiece-per-line vocabulary file.
+            do_lower_case: Whether to lower case the input.
+            dict_path: Path to a MeCab custom dictionary.
+            never_split: List of tokens which will never be split during tokenization.
         """
+        self.vocab = load_vocab(vocab_file)
+        self.ids_to_tokens = collections.OrderedDict(
+            [(ids, tok) for tok, ids in self.vocab.items()])
+        self.never_split = never_split
+        self.mecab_tokenizer = MecabBasicTokenizer(do_lower_case, dict_path)
+        self.wordpiece_tokenizer = WordpieceTokenizer(self.vocab)
 
+    def tokenize(self, text, with_info=False):
         output_tokens = []
-        for token in whitespace_tokenize(text):
-            chars = list(token)
-            if len(chars) > self.max_input_chars_per_word:
-                if with_flags:
-                    output_tokens.append((self.unk_token, 1))
-                else:
-                    output_tokens.append(self.unk_token)
+        output_token_infos = []
 
+        text = unicodedata.normalize('NFKC', text)
+        for token in self.never_split:
+            text = text.replace(token, f'\n{token}\n')
+
+        texts = text.split('\n')
+        for text in texts:
+            if text in self.never_split:
+                output_tokens.append(text)
+                output_token_infos.append(None)
                 continue
 
-            for i, char in enumerate(chars):
-                if char in self.vocab:
-                    if with_flags:
-                        output_tokens.append((char, int(i == 0)))
+            for token, token_info in zip(self.mecab_tokenizer.tokenize(text)):
+                for i, sub_token in enumerate(self.wordpiece_tokenizer.tokenize(token)):
+                    output_tokens.append(sub_token)
+                    if i == 0:
+                        output_token_infos.append(token_info)
                     else:
-                        output_tokens.append(char)
-                else:
-                    if with_flags:
-                        output_tokens.append((self.unk_token, int(i == 0)))
-                    else:
-                        output_tokens.append(self.unk_token)
+                        output_token_infos.append(None)
+
+        assert len(output_tokens) == len(output_token_infos)
+        if with_info:
+            return output_tokens, output_token_infos
+        else:
+            return output_tokens
+
+    def convert_tokens_to_ids(self, tokens):
+        """Converts a sequence of tokens into ids using the vocab."""
+        ids = []
+        for token in tokens:
+            ids.append(self.vocab[token])
+
+        return ids
+
+    def convert_ids_to_tokens(self, ids):
+        """Converts a sequence of ids in wordpiece tokens using the vocab."""
+        tokens = []
+        for i in ids:
+            tokens.append(self.ids_to_tokens[i])
+
+        return tokens
+
+
+class CharacterBertTokenizer(object):
+    """Runs character tokenization"""
+
+    def __init__(self, vocab_file, do_lower_case=False,
+                 never_split=('[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]')):
+        """Constructs a BertTokenizer.
+        Args:
+            vocab_file: Path to a one-wordpiece-per-line vocabulary file.
+            do_lower_case: Whether to lower case the input.
+            never_split: List of tokens which will never be split during tokenization.
+        """
+        self.vocab = load_vocab(vocab_file)
+        self.do_lower_case = do_lower_case
+        self.ids_to_tokens = collections.OrderedDict(
+            [(ids, tok) for tok, ids in self.vocab.items()])
+        self.never_split = never_split
+
+    def tokenize(self, text):
+        output_tokens = []
+
+        text = unicodedata.normalize('NFKC', text)
+        for token in self.never_split:
+            text = text.replace(token, f'\n{token}\n')
+
+        texts = text.split('\n')
+        for text in texts:
+            if text in self.never_split:
+                output_tokens.append(text)
+                continue
+
+            if self.do_lower_case:
+                text = text.lower
+
+            output_tokens.extend(text)
 
         return output_tokens
 
+    def convert_tokens_to_ids(self, tokens):
+        """Converts a sequence of tokens into ids using the vocab."""
+        ids = []
+        for token in tokens:
+            ids.append(self.vocab[token])
 
-def _is_whitespace(char):
-    """Checks whether `char` is a whitespace character."""
-    # \t, \n, and \r are technically contorl characters but we treat them
-    # as whitespace since they are generally considered as such.
-    if char == " " or char == "\t" or char == "\n" or char == "\r":
-        return True
+        return ids
 
-    cat = unicodedata.category(char)
-    if cat == "Zs":
-        return True
+    def convert_ids_to_tokens(self, ids):
+        """Converts a sequence of ids in wordpiece tokens using the vocab."""
+        tokens = []
+        for i in ids:
+            tokens.append(self.ids_to_tokens[i])
 
-    return False
-
-
-def _is_control(char):
-    """Checks whether `char` is a control character."""
-    # These are technically control characters but we count them as whitespace
-    # characters.
-    if char == "\t" or char == "\n" or char == "\r":
-        return False
-
-    cat = unicodedata.category(char)
-    if cat.startswith("C"):
-        return True
-
-    return False
-
-
-def _is_punctuation(char):
-    """Checks whether `char` is a punctuation character."""
-    cp = ord(char)
-    # We treat all non-letter/number ASCII as punctuation.
-    # Characters such as "^", "$", and "`" are not in the Unicode
-    # Punctuation class but we treat them as punctuation anyways, for
-    # consistency.
-    if ((cp >= 33 and cp <= 47) or (cp >= 58 and cp <= 64) or
-            (cp >= 91 and cp <= 96) or (cp >= 123 and cp <= 126)):
-        return True
-
-    cat = unicodedata.category(char)
-    if cat.startswith("P"):
-        return True
-
-    return False
+        return tokens
