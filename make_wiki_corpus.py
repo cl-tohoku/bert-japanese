@@ -118,9 +118,9 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('cirrus_file', type=str,
+    parser.add_argument('--cirrus_file', type=str, required=True,
         help='Wikipedia Cirrussearch dump file (.json.gz)')
-    parser.add_argument('output_dir', type=str,
+    parser.add_argument('--output_dir', type=str, required=True,
         help='output directory to write corpus files')
     parser.add_argument('--min_inlinks', type=int, default=1,
         help='limit document size by number of incoming links [1]')
