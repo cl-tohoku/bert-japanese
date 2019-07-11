@@ -65,7 +65,7 @@ class MecabBasicTokenizer(object):
         self.dict_path = dict_path
         import MeCab
         if dict_path:
-            self.mecab = MeCab.Tagger(f'-d {dict_path}')
+            self.mecab = MeCab.Tagger('-d {}'.format(dict_path))
         else:
             self.mecab = MeCab.Tagger()
 
@@ -179,7 +179,7 @@ class MecabBertTokenizer(object):
 
         text = unicodedata.normalize('NFKC', text)
         for token in self.never_split:
-            text = text.replace(token, f'\n{token}\n')
+            text = text.replace(token, '\n{}\n'.format(token))
 
         texts = text.split('\n')
         for text in texts:
@@ -241,7 +241,7 @@ class CharacterBertTokenizer(object):
 
         text = unicodedata.normalize('NFKC', text)
         for token in self.never_split:
-            text = text.replace(token, f'\n{token}\n')
+            text = text.replace(token, '\n{}\n'.format(token))
 
         texts = text.split('\n')
         for text in texts:

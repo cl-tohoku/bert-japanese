@@ -15,7 +15,7 @@ N_DOCS_PER_FILE = 100000
 class MeCabSentenceSplitter(object):
     def __init__(self, dict_path=None):
         if dict_path is not None:
-            self.mecab_tagger = MeCab.Tagger(f'-d {dict_path}')
+            self.mecab_tagger = MeCab.Tagger('-d {}'.format(dict_path))
         else:
             self.mecab_tagger = MeCab.Tagger()
 
@@ -39,7 +39,7 @@ class MeCabSentenceSplitter(object):
 def preprocess_text(text, title=None):
     # remove navigation preceding body text
     if title:
-        nav_segment = f'> {title}'
+        nav_segment = '> {}'.format(title)
         while nav_segment in text:
             nav_end = text.index(nav_segment) + len(nav_segment)
             text = text[nav_end:]
@@ -90,29 +90,30 @@ def main(args):
                 if n_processed_docs % N_DOCS_PER_FILE == 0:
                     file_id = n_processed_docs // N_DOCS_PER_FILE
                     output_file_path = \
-                        os.path.join(args.output_dir, f'corpus_{file_id:03d}.txt')
+                        os.path.join(args.output_dir,
+                                     'corpus_{:03d}.txt'.format(file_id))
                     output_file = tf.gfile.GFile(output_file_path, 'w')
-                    tf.logging.info(f'writing to {output_file_path}')
+                    tf.logging.info('writing to {}'.format(output_file_path))
 
                 # write document to a file
                 for sent in sentences:
                     assert not '\n' in sent, sent
                     assert sent, sent
-                    output_file.write(f'{sent}\n')
+                    output_file.write(sent + '\n')
 
                 output_file.write('\n')
 
                 n_processed_docs += 1
                 if args.debug and n_processed_docs == N_DOCS_DEBUG:
-                    tf.logging.info(f'processed: {n_processed_docs}')
+                    tf.logging.info('processed: {}'.format(n_processed_docs))
                     break
 
                 # logging
                 if n_processed_docs % (N_DOCS_PER_FILE // 10) == 0:
-                    tf.logging.info(f'processed: {n_processed_docs}')
+                    tf.logging.info('processed: {}'.format(n_processed_docs))
 
     if not args.debug and n_processed_docs % N_DOCS_PER_FILE != 0:
-        tf.logging.info(f'processed: {n_processed_docs}')
+        tf.logging.info('processed: {}'.format(n_processed_docs))
 
 
 if __name__ == "__main__":

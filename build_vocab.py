@@ -20,7 +20,7 @@ def main(args):
         concat_input_file = open(os.path.join(tempdir, 'input.txt'), 'w')
         for input_file in tf.gfile.Glob(args.input_file):
             with tf.gfile.GFile(input_file, 'r') as reader:
-                tf.logging.info(f'Reading {input_file}')
+                tf.logging.info('Reading {}'.format(input_file))
                 for line in reader:
                     tokens = tokenizer.tokenize(line.strip('\n'))
                     print(' '.join(tokens), file=concat_input_file)
@@ -41,7 +41,7 @@ def main(args):
             'input_sentence_size': args.sentence_size,
             'shuffle_input_sentence': 'true'
         }
-        command_line = ' '.join([f'--{key}={value}' for key, value in commands.items()])
+        command_line = ' '.join(['--{}={}'.format(k, v) for k, v in commands.items()])
         sentencepiece.SentencePieceTrainer.Train(command_line)
         concat_input_file.close()
 
@@ -65,7 +65,7 @@ def main(args):
                 else:
                     wp_token = sp_token
 
-                output_file.write(f'{wp_token}\n')
+                output_file.write(wp_token + '\n')
 
 
 if __name__ == "__main__":
