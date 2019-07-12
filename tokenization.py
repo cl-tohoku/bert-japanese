@@ -188,7 +188,7 @@ class MecabBertTokenizer(object):
                 output_token_infos.append(None)
                 continue
 
-            for token, token_info in zip(self.mecab_tokenizer.tokenize(text)):
+            for token, token_info in self.mecab_tokenizer.tokenize(text):
                 for i, sub_token in enumerate(self.wordpiece_tokenizer.tokenize(token)):
                     output_tokens.append(sub_token)
                     if i == 0:
