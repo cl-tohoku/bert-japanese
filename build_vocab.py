@@ -22,7 +22,7 @@ def main(args):
             with tf.gfile.GFile(input_file, 'r') as reader:
                 tf.logging.info('Reading {}'.format(input_file))
                 for line in reader:
-                    tokens = tokenizer.tokenize(line.strip('\n'))
+                    tokens, _ = tokenizer.tokenize(line.strip('\n'))
                     print(' '.join(tokens), file=concat_input_file)
 
         # train a SentencePiece model and store the vocabulary file to a temp directory
