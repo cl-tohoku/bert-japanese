@@ -36,9 +36,6 @@ flags.DEFINE_string('output_file', None,
 flags.DEFINE_string('vocab_file', None,
     'The vocabulary file that the BERT model was trained on.')
 
-flags.DEFINE_string('tokenizer_type', 'mecab',
-    'Subword vocabulary type ("mecab" or "char"). ')
-
 flags.DEFINE_string('mecab_dict_path', None,
     'Path to a MeCab custom dictionary. ')
 
@@ -444,15 +441,9 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    if FLAGS.tokenizer_type == 'mecab':
-        tokenizer = tokenization.MecabBertTokenizer(
-            vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
-            dict_path=FLAGS.mecab_dict_path)
-    elif FLAGS.tokenizer_type == 'char':
-        tokenizer = tokenization.CharacterBertTokenizer(
-            vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
-    else:
-        raise RuntimeError('Invalid tokenizer type is specified.')
+    tokenizer = tokenization.MecabBertTokenizer(
+        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+        mecab_dict_path=FLAGS.mecab_dict_path)
 
     input_files = []
     for input_pattern in FLAGS.input_file.split(','):

@@ -24,6 +24,7 @@ import os
 import unicodedata
 
 import tensorflow as tf
+import mojimoji
 
 
 logger = logging.getLogger(__name__)
@@ -55,17 +56,16 @@ def whitespace_tokenize(text):
 class MecabBasicTokenizer(object):
     """Runs basic tokenization with MeCab morphological parser."""
 
-    def __init__(self, do_lower_case=False, dict_path=None):
+    def __init__(self, do_lower_case=False, mecab_dict_path=None):
         """Constructs a BasicTokenizer.
         Args:
             do_lower_case: Whether to lower case the input.
         """
 
         self.do_lower_case = do_lower_case
-        self.dict_path = dict_path
         import MeCab
-        if dict_path:
-            self.mecab = MeCab.Tagger('-d {}'.format(dict_path))
+        if mecab_dict_path:
+            self.mecab = MeCab.Tagger('-d {}'.format(mecab_dict_path))
         else:
             self.mecab = MeCab.Tagger()
 
@@ -83,6 +83,37 @@ class MecabBasicTokenizer(object):
             if not token:
                 continue
 
+            if self.do_lower_case:
+                token = token.lower()
+
+            tokens.append(token)
+            token_infos.append(token_info)
+
+        assert len(tokens) == len(token_infos)
+        return tokens, token_infos
+
+
+class JumanBasicTokenizer(object):
+    """Runs basic tokenization with MeCab morphological parser."""
+
+    def __init__(self, do_lower_case=False):
+        """Constructs a BasicTokenizer.
+        Args:
+            do_lower_case: Whether to lower case the input.
+        """
+
+        self.do_lower_case = do_lower_case
+        from pyknp import Juman
+        self.jumanpp = Juman()
+
+    def tokenize(self, text):
+        """Tokenizes a piece of text."""
+
+        tokens = []
+        token_infos = []
+        for morph in self.jumanpp.analysis(text).mrph_list():
+            token = morph.midasi
+            token_info = morph.spec().rstrip('\n')
             if self.do_lower_case:
                 token = token.lower()
 
@@ -154,30 +185,30 @@ class WordpieceTokenizer(object):
         return output_tokens
 
 
-class MecabBertTokenizer(object):
-    """Runs end-to-end tokenization: MeCab tokenization + wordpiece"""
+class BertTokenizerBase(object):
+    """Base class for BERT tokenizers."""
 
-    def __init__(self, vocab_file, do_lower_case=False, dict_path=None,
+    def __init__(self, vocab_file, do_lower_case=False,
                  never_split=('[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]')):
         """Constructs a BertTokenizer.
         Args:
             vocab_file: Path to a one-wordpiece-per-line vocabulary file.
             do_lower_case: Whether to lower case the input.
-            dict_path: Path to a MeCab custom dictionary.
             never_split: List of tokens which will never be split during tokenization.
         """
         self.vocab = load_vocab(vocab_file)
         self.ids_to_tokens = collections.OrderedDict(
             [(ids, tok) for tok, ids in self.vocab.items()])
         self.never_split = never_split
-        self.mecab_tokenizer = MecabBasicTokenizer(do_lower_case, dict_path)
-        self.wordpiece_tokenizer = WordpieceTokenizer(self.vocab)
+        self.basic_tokenizer = None
+        self.subword_tokenizer = None
 
     def tokenize(self, text, with_info=False):
         output_tokens = []
         output_token_infos = []
 
-        text = unicodedata.normalize('NFKC', text)
+        text = self.preprocess_text(text)
+
         for token in self.never_split:
             text = text.replace(token, '\n{}\n'.format(token))
 
@@ -188,9 +219,9 @@ class MecabBertTokenizer(object):
                 output_token_infos.append(None)
                 continue
 
-            tokens, token_infos = self.mecab_tokenizer.tokenize(text)
+            tokens, token_infos = self.basic_tokenizer.tokenize(text)
             for token, token_info in zip(tokens, token_infos):
-                for i, sub_token in enumerate(self.wordpiece_tokenizer.tokenize(token)):
+                for i, sub_token in enumerate(self.subword_tokenizer.tokenize(token)):
                     output_tokens.append(sub_token)
                     if i == 0:
                         output_token_infos.append(token_info)
@@ -203,6 +234,9 @@ class MecabBertTokenizer(object):
         else:
             return output_tokens
 
+    def preprocess_text(self, text):
+        return text
+
     def convert_tokens_to_ids(self, tokens):
         """Converts a sequence of tokens into ids using the vocab."""
         ids = []
@@ -220,8 +254,30 @@ class MecabBertTokenizer(object):
         return tokens
 
 
-class CharacterBertTokenizer(object):
-    """Runs character tokenization"""
+class MecabBertTokenizer(BertTokenizerBase):
+    """Runs end-to-end tokenization: MeCab tokenization + WordPiece"""
+
+    def __init__(self, vocab_file, do_lower_case=False,
+                 never_split=('[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]'),
+                 mecab_dict_path=None):
+        """Constructs a BertTokenizer.
+        Args:
+            vocab_file: Path to a one-wordpiece-per-line vocabulary file.
+            do_lower_case: Whether to lower case the input.
+            never_split: List of tokens which will never be split during tokenization.
+            dict_path: Path to a MeCab custom dictionary.
+        """
+        super(MecabBertTokenizer, self).__init__(vocab_file, do_lower_case, never_split)
+        self.base_tokenizer = MecabBasicTokenizer(do_lower_case, mecab_dict_path)
+        self.subword_tokenizer = WordpieceTokenizer(self.vocab)
+
+    def preprocess_text(self, text, with_info=False):
+        text = unicodedata.normalize('NFKC', text)
+        return text
+
+
+class JumanBertTokenizer(BertTokenizerBase):
+    """Runs end-to-end tokenization: Juman++ tokenization + WordPiece"""
 
     def __init__(self, vocab_file, do_lower_case=False,
                  never_split=('[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]')):
@@ -231,44 +287,11 @@ class CharacterBertTokenizer(object):
             do_lower_case: Whether to lower case the input.
             never_split: List of tokens which will never be split during tokenization.
         """
-        self.vocab = load_vocab(vocab_file)
-        self.do_lower_case = do_lower_case
-        self.ids_to_tokens = collections.OrderedDict(
-            [(ids, tok) for tok, ids in self.vocab.items()])
-        self.never_split = never_split
+        super(JumanBertTokenizer, self).__init__(vocab_file, do_lower_case, never_split)
+        self.base_tokenizer = JumanBasicTokenizer(do_lower_case)
+        self.subword_tokenizer = WordpieceTokenizer(self.vocab)
 
-    def tokenize(self, text):
-        output_tokens = []
-
+    def preprocess_text(self, text, with_info=False):
         text = unicodedata.normalize('NFKC', text)
-        for token in self.never_split:
-            text = text.replace(token, '\n{}\n'.format(token))
-
-        texts = text.split('\n')
-        for text in texts:
-            if text in self.never_split:
-                output_tokens.append(text)
-                continue
-
-            if self.do_lower_case:
-                text = text.lower
-
-            output_tokens.extend(text)
-
-        return output_tokens
-
-    def convert_tokens_to_ids(self, tokens):
-        """Converts a sequence of tokens into ids using the vocab."""
-        ids = []
-        for token in tokens:
-            ids.append(self.vocab[token])
-
-        return ids
-
-    def convert_ids_to_tokens(self, ids):
-        """Converts a sequence of ids in wordpiece tokens using the vocab."""
-        tokens = []
-        for i in ids:
-            tokens.append(self.ids_to_tokens[i])
-
-        return tokens
+        text = mojimoji.han_to_zen(text)
+        return text

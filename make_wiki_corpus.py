@@ -13,17 +13,17 @@ N_DOCS_PER_FILE = 100000
 
 
 class MeCabSentenceSplitter(object):
-    def __init__(self, dict_path=None):
-        if dict_path is not None:
-            self.mecab_tagger = MeCab.Tagger('-d {}'.format(dict_path))
+    def __init__(self, mecab_dict_path=None):
+        if mecab_dict_path is not None:
+            self.mecab = MeCab.Tagger('-d {}'.format(mecab_dict_path))
         else:
-            self.mecab_tagger = MeCab.Tagger()
+            self.mecab = MeCab.Tagger()
 
     def __call__(self, text):
         sentences = []
         start = 0
         end = 0
-        for line in self.mecab_tagger.parse(text).split('\n'):
+        for line in self.mecab.parse(text).split('\n'):
             if line == 'EOS':
                 break
 
@@ -57,7 +57,7 @@ def postprocess_text(text):
 
 def main(args):
     tf.logging.set_verbosity(tf.logging.INFO)
-    sent_splitter = MeCabSentenceSplitter(args.mecab_dict)
+    sent_splitter = MeCabSentenceSplitter(args.mecab_dict_path)
 
     tf.gfile.MakeDirs(args.output_dir)
 
@@ -128,7 +128,7 @@ if __name__ == "__main__":
         help='only extract sentences with N+ characters [20]')
     parser.add_argument('--max_length', type=int, default=1000,
         help='only extract sentences with N+ characters [1000]')
-    parser.add_argument('--mecab_dict', type=str,
+    parser.add_argument('--mecab_dict_path', type=str,
         help='path to MeCab dictionary')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
