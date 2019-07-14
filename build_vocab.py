@@ -33,7 +33,7 @@ def main(args):
             'model_type': args.subword_type,
             'normalization_rule_name': 'identity',
             'vocab_size': args.vocab_size,
-            'character_coverage': 1.0,
+            'character_coverage': 0.9995 if args.subword_type == 'bpe' else 1.0,
             'pad_id': 0,
             'unk_id': 1,
             'bos_id': -1,
