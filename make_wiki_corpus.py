@@ -59,8 +59,6 @@ def main(args):
     tf.logging.set_verbosity(tf.logging.INFO)
     sent_splitter = MeCabSentenceSplitter(args.mecab_dict_path)
 
-    tf.gfile.MakeDirs(args.output_dir)
-
     n_processed_docs = 0
     with tf.gfile.GFile(args.cirrus_file, 'r') as cirrus_file, \
          tf.gfile.GFile(args.output_file, 'w') as output_file:
