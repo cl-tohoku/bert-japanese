@@ -30,7 +30,7 @@ def main(args):
         commands = {
             'input': concat_input_file.name,
             'model_prefix': os.path.join(tempdir, 'sp'),
-            'model_type': args.vocab_type,
+            'model_type': args.subword_type,
             'normalization_rule_name': 'identity',
             'vocab_size': args.vocab_size,
             'character_coverage': 1.0,
@@ -60,7 +60,7 @@ def main(args):
                 elif sp_token.startswith('\u2581'):
                     # e.g. "▁word" -> "word"
                     output_token = sp_token[1:]
-                elif args.vocab_type == 'bpe':
+                elif args.subword_type == 'bpe':
                     # e.g. "tion" -> "##tion"
                     output_token = '##' + sp_token
                 else:
