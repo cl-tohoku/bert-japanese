@@ -62,8 +62,7 @@ def main(args):
     tf.gfile.MakeDirs(args.output_dir)
 
     n_processed_docs = 0
-    with tf.gfile.GFile(args.cirrus_file, 'rb') as reader, \
-         gzip.GzipFile(fileobj=reader) as cirrus_file, \
+    with tf.gfile.GFile(args.cirrus_file, 'r') as cirrus_file, \
          tf.gfile.GFile(args.output_file, 'w') as output_file:
         for line in cirrus_file:
             json_obj = json.loads(line)
@@ -111,7 +110,7 @@ def main(args):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--cirrus_file', type=str, required=True,
-        help='Wikipedia Cirrussearch dump file (.json.gz)')
+        help='Wikipedia Cirrussearch dump file (.json)')
     parser.add_argument('--output_file', type=str, required=True,
         help='output corpus file')
     parser.add_argument('--min_inlinks', type=int, default=1,
