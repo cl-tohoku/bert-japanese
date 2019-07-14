@@ -9,7 +9,7 @@ import tensorflow as tf
 
 
 N_DOCS_DEBUG = 1000
-N_DOCS_PER_FILE = 100000
+N_DOCS_LOGGING = 10000
 
 
 class MeCabSentenceSplitter(object):
@@ -63,7 +63,8 @@ def main(args):
 
     n_processed_docs = 0
     with tf.gfile.GFile(args.cirrus_file, 'rb') as reader, \
-         gzip.GzipFile(fileobj=reader) as cirrus_file:
+         gzip.GzipFile(fileobj=reader) as cirrus_file, \
+         tf.gfile.GFile(args.output_file, 'w') as output_file:
         for line in cirrus_file:
             json_obj = json.loads(line)
             # ignore non-article pages
@@ -86,15 +87,6 @@ def main(args):
                          if args.min_length <= len(sent) <= args.max_length]
 
             if sentences:
-                # open a new file at certain intervals
-                if n_processed_docs % N_DOCS_PER_FILE == 0:
-                    file_id = n_processed_docs // N_DOCS_PER_FILE
-                    output_file_path = \
-                        os.path.join(args.output_dir,
-                                     'corpus_{:03d}.txt'.format(file_id))
-                    output_file = tf.gfile.GFile(output_file_path, 'w')
-                    tf.logging.info('writing to {}'.format(output_file_path))
-
                 # write document to a file
                 for sent in sentences:
                     assert not '\n' in sent, sent
@@ -109,19 +101,19 @@ def main(args):
                     break
 
                 # logging
-                if n_processed_docs % (N_DOCS_PER_FILE // 10) == 0:
+                if n_processed_docs % N_DOCS_LOGGING == 0:
                     tf.logging.info('processed: {}'.format(n_processed_docs))
 
-    if not args.debug and n_processed_docs % N_DOCS_PER_FILE != 0:
-        tf.logging.info('processed: {}'.format(n_processed_docs))
+        if not args.debug and n_processed_docs % N_DOCS_LOGGING != 0:
+            tf.logging.info('processed: {}'.format(n_processed_docs))
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument('--cirrus_file', type=str, required=True,
         help='Wikipedia Cirrussearch dump file (.json.gz)')
-    parser.add_argument('--output_dir', type=str, required=True,
-        help='output directory to write corpus files')
+    parser.add_argument('--output_file', type=str, required=True,
+        help='output corpus file')
     parser.add_argument('--min_inlinks', type=int, default=1,
         help='limit document size by number of incoming links [1]')
     parser.add_argument('--min_length', type=int, default=20,
