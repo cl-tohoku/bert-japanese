@@ -268,7 +268,7 @@ class MecabBertTokenizer(BertTokenizerBase):
             dict_path: Path to a MeCab custom dictionary.
         """
         super(MecabBertTokenizer, self).__init__(vocab_file, do_lower_case, never_split)
-        self.base_tokenizer = MecabBasicTokenizer(do_lower_case, mecab_dict_path)
+        self.basic_tokenizer = MecabBasicTokenizer(do_lower_case, mecab_dict_path)
         self.subword_tokenizer = WordpieceTokenizer(self.vocab)
 
     def preprocess_text(self, text, with_info=False):
@@ -288,7 +288,7 @@ class JumanBertTokenizer(BertTokenizerBase):
             never_split: List of tokens which will never be split during tokenization.
         """
         super(JumanBertTokenizer, self).__init__(vocab_file, do_lower_case, never_split)
-        self.base_tokenizer = JumanBasicTokenizer(do_lower_case)
+        self.basic_tokenizer = JumanBasicTokenizer(do_lower_case)
         self.subword_tokenizer = WordpieceTokenizer(self.vocab)
 
     def preprocess_text(self, text, with_info=False):
