@@ -185,6 +185,40 @@ class WordpieceTokenizer(object):
         return output_tokens
 
 
+class CharacterTokenizer(object):
+    """Runs Character tokenziation."""
+
+    def __init__(self, vocab, unk_token='[UNK]'):
+        self.vocab = vocab
+        self.unk_token = unk_token
+
+    def tokenize(self, text):
+        """Tokenizes a piece of text into characters..
+        For example:
+            input = "apple"
+            output = ["a", "##p", "##p", "##l", "##e"]
+        Args:
+            text: A single token or whitespace separated tokens. This should have
+                already been passed through `BasicTokenizer.
+        Returns:
+            A list of character tokens.
+        """
+
+        output_tokens = []
+        for token in whitespace_tokenize(text):
+            for i, char in enumerate(token):
+                if char not in self.vocab:
+                    output_tokens.append(self.unk_token)
+                    continue
+
+                if i == 0:
+                    output_tokens.append(char)
+                else:
+                    output_tokens.append('##' + char)
+
+        return output_tokens
+
+
 class BertTokenizerBase(object):
     """Base class for BERT tokenizers."""
 
@@ -274,6 +308,40 @@ class MecabBertTokenizer(BertTokenizerBase):
     def preprocess_text(self, text, with_info=False):
         text = unicodedata.normalize('NFKC', text)
         return text
+
+
+class MecabCharacterBertTokenizer(BertTokenizerBase):
+    """Runs end-to-end tokenization: MeCab tokenization + WordPiece"""
+
+    def __init__(self, vocab_file, do_lower_case=False,
+                 never_split=('[UNK]', '[SEP]', '[PAD]', '[CLS]', '[MASK]'),
+                 mecab_dict_path=None):
+        """Constructs a BertTokenizer.
+        Args:
+            vocab_file: Path to a one-wordpiece-per-line vocabulary file.
+            do_lower_case: Whether to lower case the input.
+            never_split: List of tokens which will never be split during tokenization.
+            dict_path: Path to a MeCab custom dictionary.
+        """
+        super(MecabCharacterBertTokenizer, self).__init__(
+            vocab_file, do_lower_case, never_split)
+        self.basic_tokenizer = MecabBasicTokenizer(do_lower_case, mecab_dict_path)
+        self.subword_tokenizer = CharacterTokenizer(self.vocab)
+
+    def preprocess_text(self, text, with_info=False):
+        text = unicodedata.normalize('NFKC', text)
+        return text
+
+    def convert_tokens_to_ids(self, tokens):
+        """Converts a sequence of tokens into ids using the vocab."""
+        ids = []
+        for token in tokens:
+            if token[:2] == '##':
+                token = token[2:]
+
+            ids.append(self.vocab[token])
+
+        return ids
 
 
 class JumanBertTokenizer(BertTokenizerBase):
