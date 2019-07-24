@@ -42,7 +42,7 @@ flags.DEFINE_string('subword_type', 'bpe',
 flags.DEFINE_string('mecab_dict_path', None,
     'Path to a MeCab custom dictionary. ')
 
-flags.DEFINE_bool('do_lower_case', True,
+flags.DEFINE_bool('do_lower_case', False,
     'Whether to lower case the input text. '
     'Should be True for uncased models and False for cased models.')
 

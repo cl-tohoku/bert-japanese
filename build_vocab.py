@@ -81,8 +81,8 @@ if __name__ == "__main__":
         help='WordPiece vocabulary size. [32000]')
     parser.add_argument('--sentence_size', type=int, default=1000000,
         help='Limit the input sentence size. [1000000]')
-    parser.add_argument('--do_lower_case', type=bool, default=False,
-        help='Whether to lower case the input text. [False]')
+    parser.add_argument('--do_lower_case', action='store_true',
+        help='Lowercase the input text.')
     parser.add_argument('--mecab_dict_path', type=str,
         help='Path to MeCab custom dictionary.')
     args = parser.parse_args()
