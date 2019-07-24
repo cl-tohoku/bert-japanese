@@ -36,6 +36,9 @@ flags.DEFINE_string('output_file', None,
 flags.DEFINE_string('vocab_file', None,
     'The vocabulary file that the BERT model was trained on.')
 
+flags.DEFINE_string('subword_type', 'bpe',
+    'The subword type of the vocabulary')
+
 flags.DEFINE_string('mecab_dict_path', None,
     'Path to a MeCab custom dictionary. ')
 
@@ -441,9 +444,16 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 def main(_):
     tf.logging.set_verbosity(tf.logging.INFO)
 
-    tokenizer = tokenization.MecabBertTokenizer(
-        vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
-        mecab_dict_path=FLAGS.mecab_dict_path)
+    if FLAGS.subword_type == 'bpe':
+        tokenizer = tokenization.MecabBertTokenizer(
+            vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+            mecab_dict_path=FLAGS.mecab_dict_path)
+    elif FLAGS.subword_type == 'char':
+        tokenizer = tokenization.MecabCharacterBertTokenizer(
+            vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+            mecab_dict_path=FLAGS.mecab_dict_path)
+    else:
+        raise RuntimeError('Invalid subword type.')
 
     input_files = []
     for input_pattern in FLAGS.input_file.split(','):
