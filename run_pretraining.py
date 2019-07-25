@@ -74,6 +74,9 @@ flags.DEFINE_integer("num_warmup_steps", 10000, "Number of warmup steps.")
 flags.DEFINE_integer("save_checkpoints_steps", 1000,
                      "How often to save the model checkpoint.")
 
+flags.DEFINE_integer("keep_checkpoint_max", None,
+                     "The maximum number of recent checkpoint files to keep.")
+
 flags.DEFINE_integer("iterations_per_loop", 1000,
                      "How many steps to make in each estimator call.")
 
@@ -429,6 +432,7 @@ def main(_):
   is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
   run_config = tf.contrib.tpu.RunConfig(
       cluster=tpu_cluster_resolver,
+      keep_checkpoint_max=FLAGS.keep_checkpoint_max,
       master=FLAGS.master,
       model_dir=FLAGS.output_dir,
       save_checkpoints_steps=FLAGS.save_checkpoints_steps,
