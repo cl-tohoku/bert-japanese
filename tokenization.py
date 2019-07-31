@@ -56,38 +56,49 @@ def whitespace_tokenize(text):
 class MecabBasicTokenizer(object):
     """Runs basic tokenization with MeCab morphological parser."""
 
-    def __init__(self, do_lower_case=False, mecab_dict_path=None):
+    def __init__(self, mecab_dict_path=None, do_lower_case=False, keep_spaces=False):
         """Constructs a BasicTokenizer.
         Args:
             do_lower_case: Whether to lower case the input.
         """
 
-        self.do_lower_case = do_lower_case
         import MeCab
         if mecab_dict_path:
             self.mecab = MeCab.Tagger('-d {}'.format(mecab_dict_path))
         else:
             self.mecab = MeCab.Tagger()
 
+        self.do_lower_case = do_lower_case
+        self.keep_spaces = keep_spaces
+
     def tokenize(self, text):
         """Tokenizes a piece of text."""
 
         tokens = []
         token_infos = []
+        cursor = 0
         for line in self.mecab.parse(text).split('\n'):
             if line == 'EOS':
                 break
 
             token, token_info = line.split('\t')
-            token = token.strip()
-            if not token:
-                continue
+
+            token_start = text.index(token, cursor)
+            token_end = token_start + len(token)
+            if self.keep_spaces and cursor < token_start:
+                tokens.append(text[cursor:token_start])
+                token_infos.append(None)
 
             if self.do_lower_case:
                 token = token.lower()
 
             tokens.append(token)
             token_infos.append(token_info)
+            cursor = token_end
+
+        if self.keep_spaces and len(text[cursor:]) > 0:
+            tokens.append(text[cursor:])
+            token_infos.append(None)
 
         assert len(tokens) == len(token_infos)
         return tokens, token_infos
@@ -188,11 +199,12 @@ class WordpieceTokenizer(object):
 class CharacterTokenizer(object):
     """Runs Character tokenziation."""
 
-    def __init__(self, vocab, unk_token='[UNK]'):
+    def __init__(self, vocab, unk_token='[UNK]', with_markers=True):
         self.vocab = vocab
         self.unk_token = unk_token
+        self.with_markers = with_markers
 
-    def tokenize(self, text):
+    def tokenize(self, text, with_markers=True):
         """Tokenizes a piece of text into characters..
         For example:
             input = "apple"
@@ -205,16 +217,15 @@ class CharacterTokenizer(object):
         """
 
         output_tokens = []
-        for token in whitespace_tokenize(text):
-            for i, char in enumerate(token):
-                if char not in self.vocab:
-                    output_tokens.append(self.unk_token)
-                    continue
+        for i, char in enumerate(text):
+            if char not in self.vocab:
+                output_tokens.append(self.unk_token)
+                continue
 
-                if i == 0:
-                    output_tokens.append(char)
-                else:
-                    output_tokens.append('##' + char)
+            if self.with_markers and i != 0:
+                output_tokens.append('##' + char)
+            else:
+                output_tokens.append(char)
 
         return output_tokens
 
@@ -302,10 +313,10 @@ class MecabBertTokenizer(BertTokenizerBase):
             dict_path: Path to a MeCab custom dictionary.
         """
         super(MecabBertTokenizer, self).__init__(vocab_file, do_lower_case, never_split)
-        self.basic_tokenizer = MecabBasicTokenizer(do_lower_case, mecab_dict_path)
+        self.basic_tokenizer = MecabBasicTokenizer(mecab_dict_path, do_lower_case)
         self.subword_tokenizer = WordpieceTokenizer(self.vocab)
 
-    def preprocess_text(self, text, with_info=False):
+    def preprocess_text(self, text):
         text = unicodedata.normalize('NFKC', text)
         return text
 
@@ -325,10 +336,11 @@ class MecabCharacterBertTokenizer(BertTokenizerBase):
         """
         super(MecabCharacterBertTokenizer, self).__init__(
             vocab_file, do_lower_case, never_split)
-        self.basic_tokenizer = MecabBasicTokenizer(do_lower_case, mecab_dict_path)
-        self.subword_tokenizer = CharacterTokenizer(self.vocab)
+        self.basic_tokenizer = MecabBasicTokenizer(mecab_dict_path, do_lower_case,
+                                                   keep_spaces=True)
+        self.subword_tokenizer = CharacterTokenizer(self.vocab, with_markers=True)
 
-    def preprocess_text(self, text, with_info=False):
+    def preprocess_text(self, text):
         text = unicodedata.normalize('NFKC', text)
         return text
 
@@ -359,7 +371,7 @@ class JumanBertTokenizer(BertTokenizerBase):
         self.basic_tokenizer = JumanBasicTokenizer(do_lower_case)
         self.subword_tokenizer = WordpieceTokenizer(self.vocab)
 
-    def preprocess_text(self, text, with_info=False):
+    def preprocess_text(self, text):
         text = unicodedata.normalize('NFKC', text)
         text = mojimoji.han_to_zen(text)
         return text
