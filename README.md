@@ -1,127 +1,141 @@
+# BERT models pretrained on Japanese text
+
+This repository contains scripts for training BERT models on Japnese text.
+
+## Pretrained models
+
+See [Releases](https://github.com/singletongue/japanese-bert/releases).
+
+## Usage
+
+Refer to `masked_lm_example.ipynb`.
+
+---
+
+## Logs of pretraining
+
+### Process a Wikipedia dump file
+
+```sh
+$ python3 wikiextractor/WikiExtractor.py --output /work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus --bytes 512M --compress --json --links --namespaces 0
+--no_templates --min_text_length 16 --processes 20 /work/m-suzuki/data/wikipedia/dumps/jawiki/20190701/jawiki-20190701-pages-articles.xml.bz2
+...
+INFO: Finished 20-process extraction of 1157858 articles in 1955.2s (592.2 art/s)
+INFO: total of page: 1667236, total of articl page: 1157858; total of used articl page: 1157858
 ```
-sudo apt update
-sudo apt upgrade
-sudo apt install python3-pip parallel mecab libmecab-dev mecab-ipadic-utf8 swig
-pip3 install mecab-python3 sentencepiece tensorflow
 
-git clone --recursive https://github.com/singletongue/bert-ja.git
-singletongue
-fErz89iYMpsN93jy
+### Generate corpus
 
-cd bert-ja
+```sh
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 9 python3 make_corpus.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/AA/wiki_{}.bz2 --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/corpus.txt.{} --mecab_dict_path ~/local/lib/mecab/dic/ipadic-neologd-20180828
+```
 
-python3 make_wiki_corpus.py gs://singletongue-tohoku-nlp/wikipedia-dump/jawiki-20190225-cirrussearch-content.json.gz gs://singletongue-tohoku-nlp/bert-ja/corpus --mecab_dict=/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd
+### Build vocabulary
 
+```sh
+$ python3 build_vocab.py --input_file '/work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/corpus.txt.*' --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k/vocab.txt --subword_type bpe --vocab_size 32000
+$ cat bert_config_base.json |jq '.vocab_size=32000' > /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k/bert_config.json
+```
 
-python3 build_vocab.py "work/corpus/corpus_*.txt" work/bpe-32k/vocab.txt --vocab_type=bpe --vocab_size=32000 --do_lower_case=False
+```sh
+$ python3 build_vocab.py --input_file '/work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/corpus.txt.*' --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-char-4k/vocab.txt --subword_type char --vocab_size 4000
+$ cat bert_config_base.json |jq '.vocab_size=4000' > /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-char-4k/bert_config.json
+```
 
-python3 build_vocab.py "work/corpus/corpus_*.txt" work/char/vocab.txt --vocab_type=char --do_lower_case=False
+### Create pretraining data
 
-python3 build_vocab.py gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_*.txt gs://singletongue-tohoku-nlp/bert-ja/bpe-neologd-32k/vocab.txt --vocab_type=bpe --vocab_size=32000 --do_lower_case=False --mecab_dict=/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd
+```sh
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 3 python3 create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k/max-len-128
+/pretraining-data.tf_record.{} --do_whole_word_mask --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k/vocab.txt --max_seq_length 128 --max_predictions_per_seq 20 --masked_lm_prob 0.15
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 3 python3 create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k/max-len-512/pretraining-data.tf_record.{} --do_whole_word_mask --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k/vocab.txt --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+# 1プロセスあたり30GBのRAMを使用
+```
 
+```sh
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 3 python3 create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-char-4k/max-len-128/pretraining-data.tf_record.{} --do_whole_word_mask --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190701/mecab-ipadic-char-4k/vocab.txt --subword_type char --max_seq_length 128 --max_predictions_per_seq 20 --masked_lm_prob 0.15
+# 1プロセスあたり42GBのRAMを使用
+```
 
-seq -f %03g 0 10|parallel "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-128/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/vocab.txt --do_lower_case=False --max_seq_length=128 --max_predictions_per_seq=20 --masked_lm_prob=0.15"
+### Training
 
-seq -f %03g 0 10|parallel "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-512/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/vocab.txt --do_lower_case=False --max_seq_length=512 --max_predictions_per_seq=80 --masked_lm_prob=0.15"
+```sh
+$ export BASE_DIR='gs://singletongue-tohoku-nlp-2019/japanese-bert/jawiki-20190701/mecab-ipadic-bpe-32k'
+$ python3 run_pretraining.py \
+--input_file="$BASE_DIR/max-len-128/pretraining-data.tf_record.*" \
+--output_dir="$BASE_DIR/max-len-128/outputs" \
+--bert_config_file="$BASE_DIR/bert_config.json" \
+--max_seq_length=128 \
+--max_predictions_per_seq=20 \
+--do_train=True \
+--do_eval=True \
+--train_batch_size=256 \
+--num_train_steps=1000000 \
+--learning_rate=1e-4 \
+--save_checkpoints_steps=100000 \
+--keep_checkpoint_max=10 \
+--use_tpu=True \
+--tpu_name=tpu01
+$ python3 run_pretraining.py \
+--input_file="$BASE_DIR/max-len-512/pretraining-data.tf_record.*" \
+--output_dir="$BASE_DIR/max-len-512/outputs/" \
+--bert_config_file="$BASE_DIR/bert_config.json" \
+--init_checkpoint="$BASE_DIR/max-len-128/outputs/model.ckpt-1000000" \
+--max_seq_length=512 \
+--max_predictions_per_seq=80 \
+--do_train=True \
+--do_eval=True \
+--train_batch_size=256 \
+--num_train_steps=100000 \
+--num_warmup_steps=10000 \
+--learning_rate=1e-4 \
+--save_checkpoints_steps=10000 \
+--keep_checkpoint_max=10 \
+--use_tpu=True \
+--tpu_name=tpu01
+```
 
-seq -f %03g 0 10|parallel -j 6 "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/bpe-neologd-32k/max-len-512/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/bpe-neologd-32k/vocab.txt --do_lower_case=False --mecab_dict=/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd --max_seq_length=512 --max_predictions_per_seq=80 --masked_lm_prob=0.15"
+```sh
+$ export BASE_DIR='gs://singletongue-tohoku-nlp-2019/japanese-bert/jawiki-20190701/mecab-ipadic-char-4k'
+$ python3 run_pretraining.py \
+--input_file="$BASE_DIR/max-len-128/pretraining-data.tf_record.*" \
+--output_dir="$BASE_DIR/max-len-128/outputs" \
+--bert_config_file="$BASE_DIR/bert_config.json" \
+--max_seq_length=128 \
+--max_predictions_per_seq=20 \
+--do_train=True \
+--do_eval=True \
+--train_batch_size=256 \
+--num_train_steps=1000000 \
+--learning_rate=1e-4 \
+--save_checkpoints_steps=100000 \
+--keep_checkpoint_max=10 \
+--use_tpu=True \
+--tpu_name=tpu01
+$ python3 run_pretraining.py \
+--input_file="$BASE_DIR/max-len-512/pretraining-data.tf_record.*" \
+--output_dir="$BASE_DIR/max-len-512/outputs/" \
+--bert_config_file="$BASE_DIR/bert_config.json" \
+--init_checkpoint="$BASE_DIR/max-len-128/outputs/model.ckpt-1000000" \
+--max_seq_length=512 \
+--max_predictions_per_seq=80 \
+--do_train=True \
+--do_eval=True \
+--train_batch_size=256 \
+--num_train_steps=100000 \
+--num_warmup_steps=10000 \
+--learning_rate=1e-4 \
+--save_checkpoints_steps=10000 \
+--keep_checkpoint_max=10 \
+--use_tpu=True \
+--tpu_name=tpu01
+```
 
-seq -f %03g 0 10|parallel -j 6 "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/char/max-len-128/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/char/vocab.txt --vocab_type=char --do_lower_case=False --mecab_dict=/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd --max_seq_length=128 --max_predictions_per_seq=20 --masked_lm_prob=0.15"
+### Model conversion
 
-seq -f %03g 0 10|parallel -j 6 "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/char/vocab.txt --vocab_type=char --do_lower_case=False --mecab_dict=/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd --max_seq_length=512 --max_predictions_per_seq=80 --masked_lm_prob=0.15"
-
-seq -f %03g 0 10|parallel -j 6 "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512-word-mask/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/char/vocab.txt --vocab_type=char --do_lower_case=False --mecab_dict=/usr/lib/x86_64-linux-gnu/mecab/dic/mecab-ipadic-neologd --max_seq_length=512 --max_predictions_per_seq=80 --masked_lm_prob=0.15 --do_mask_words=True"
-
-seq -f %03g 0 10|parallel -j 6 "python3 create_pretraining_data.py --input_file=gs://singletongue-tohoku-nlp/bert-ja/corpus/corpus_{}.txt --output_file=gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512-word-mask-ipadic/data_{}.tf_record --vocab_file=gs://singletongue-tohoku-nlp/bert-ja/char/vocab.txt --vocab_type=char --do_lower_case=False --max_seq_length=512 --max_predictions_per_seq=80 --masked_lm_prob=0.15 --do_mask_words=True"
-
-
-gsutil -m cp -r gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-128 gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-128/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-128/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_32k.json --train_batch_size=256 --max_seq_length=128 --max_predictions_per_seq=20 --num_train_steps=1000000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu1
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 1000000
-INFO:tensorflow:  loss = 1.2630663
-INFO:tensorflow:  masked_lm_accuracy = 0.73422116
-INFO:tensorflow:  masked_lm_loss = 1.2153858
-INFO:tensorflow:  next_sentence_accuracy = 0.99875
-INFO:tensorflow:  next_sentence_loss = 0.010885029
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-128/output gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-128
-gsutil -m cp -r gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-512 gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-512/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-512/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_32k.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=100000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu1 --init_checkpoint=gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-128/output/model.ckpt-1000000
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 100000
-INFO:tensorflow:  loss = 1.1959007
-INFO:tensorflow:  masked_lm_accuracy = 0.7502446
-INFO:tensorflow:  masked_lm_loss = 1.1334296
-INFO:tensorflow:  next_sentence_accuracy = 0.99125
-INFO:tensorflow:  next_sentence_loss = 0.02344454
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-32k/max-len-512/output gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-128-512/output
-
-gsutil -m cp -r gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512 gs://singletongue-tohoku-nlp-b2/bert-ja/char/
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b2/bert-ja/char/max-len-512/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b2/bert-ja/char/max-len-512/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_char.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=200000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu2
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 200000
-INFO:tensorflow:  loss = 0.74225485
-INFO:tensorflow:  masked_lm_accuracy = 0.8275703
-INFO:tensorflow:  masked_lm_loss = 0.70348394
-INFO:tensorflow:  next_sentence_accuracy = 0.99
-INFO:tensorflow:  next_sentence_loss = 0.026093941
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b2/bert-ja/char/max-len-512/output gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b2/bert-ja/char/max-len-512/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b2/bert-ja/char/max-len-512/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_char.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=300000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu2
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 300000
-INFO:tensorflow:  loss = 0.68127716
-INFO:tensorflow:  masked_lm_accuracy = 0.83663344
-INFO:tensorflow:  masked_lm_loss = 0.6577373
-INFO:tensorflow:  next_sentence_accuracy = 0.99875
-INFO:tensorflow:  next_sentence_loss = 0.010905556
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b2/bert-ja/char/max-len-512/output gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512
-
-
-gsutil -m cp -r gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-512 gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/max-len-512/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/max-len-512/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_32k.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=200000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu3
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 200000
-INFO:tensorflow:  loss = 1.4193339
-INFO:tensorflow:  masked_lm_accuracy = 0.7146252
-INFO:tensorflow:  masked_lm_loss = 1.3418813
-INFO:tensorflow:  next_sentence_accuracy = 0.98875
-INFO:tensorflow:  next_sentence_loss = 0.032133516
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/max-len-512 gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-512
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/max-len-512/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/max-len-512/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_32k.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=300000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu3
-INFO:tensorflow:  loss = 1.3004764
-INFO:tensorflow:  masked_lm_accuracy = 0.73069936
-INFO:tensorflow:  masked_lm_loss = 1.2371464
-INFO:tensorflow:  next_sentence_accuracy = 0.99625
-INFO:tensorflow:  next_sentence_loss = 0.012381399
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b3/bert-ja/bpe-32k/max-len-512/output gs://singletongue-tohoku-nlp/bert-ja/bpe-32k/max-len-512
-
-gsutil -m cp -r gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512-word-mask gs://singletongue-tohoku-nlp-b4/bert-ja/char/
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b4/bert-ja/char/max-len-512-word-mask/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b4/bert-ja/char/max-len-512-word-mask/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_char.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=200000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu4
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 200000
-INFO:tensorflow:  loss = 1.8685613
-INFO:tensorflow:  masked_lm_accuracy = 0.6171954
-INFO:tensorflow:  masked_lm_loss = 1.7655338
-INFO:tensorflow:  next_sentence_accuracy = 0.97625
-INFO:tensorflow:  next_sentence_loss = 0.052986287
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b4/bert-ja/char/max-len-512-word-mask/output gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512-word-mask
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b4/bert-ja/char/max-len-512-word-mask/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b4/bert-ja/char/max-len-512-word-mask/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_char.json --train_batch_size=256 --max_seq_length=512 --max_predictions_per_seq=80 --num_train_steps=300000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu4
-INFO:tensorflow:***** Eval results *****
-INFO:tensorflow:  global_step = 300000
-INFO:tensorflow:  loss = 1.7845131
-INFO:tensorflow:  masked_lm_accuracy = 0.6298905
-INFO:tensorflow:  masked_lm_loss = 1.6963465
-INFO:tensorflow:  next_sentence_accuracy = 0.9875
-INFO:tensorflow:  next_sentence_loss = 0.034039002
-gsutil -m cp -r gs://singletongue-tohoku-nlp-b4/bert-ja/char/max-len-512-word-mask/output gs://singletongue-tohoku-nlp/bert-ja/char/max-len-512-word-mask
-
-
-gsutil -m cp -r gs://singletongue-tohoku-nlp/bert-ja/bpe-neologd-32k/max-len-128 gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-neologd-32k/
-python bert/run_pretraining.py --input_file="gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-neologd-32k/max-len-128/data_*.tf_record" --output_dir=gs://singletongue-tohoku-nlp-b1/bert-ja/bpe-neologd-32k/max-len-128/output --do_train=True --do_eval=True --bert_config_file=bert_config_base_32k.json --train_batch_size=256 --max_seq_length=128 --max_predictions_per_seq=20 --num_train_steps=1000000 --learning_rate=1e-4 --save_checkpoints_steps=10000 --use_tpu=True --tpu_name=tpu1
-
-
-tpu1 -> bpe-neologd-32k/max-len-128 [1000000]
-tpu2 -> char/max-len-512 [300000]
-tpu3 -> bpe-32k/max-len-512 [300000]
-tpu4 -> char/max-len-512-word-mask [300000]
+```sh
+$ cd $BASE_DIR
+$ pytorch_transformers bert max-len-512/outputs/model.ckpt-100000 bert_config.json pytorch_model.bin
+$ cp max-len-512/outputs/model.ckpt-100000.data-00000-of-00001 model.ckpt.data-00000-of-00001
+$ cp max-len-512/outputs/model.ckpt-100000.index model.ckpt.index
+$ cp max-len-512/outputs/model.ckpt-100000.meta model.ckpt.meta
 ```
