@@ -138,4 +138,7 @@ $ pytorch_transformers bert max-len-512/outputs/model.ckpt-100000 bert_config.js
 $ cp max-len-512/outputs/model.ckpt-100000.data-00000-of-00001 model.ckpt.data-00000-of-00001
 $ cp max-len-512/outputs/model.ckpt-100000.index model.ckpt.index
 $ cp max-len-512/outputs/model.ckpt-100000.meta model.ckpt.meta
+$ mkdir mecab-ipadic-bpe-32k
+$ cp bert_config.json model.ckpt.* pytorch_model.bin vocab.txt mecab-ipadic-bpe-32k
+$ tar czf mecab-ipadic-bpe-32k.tar.gz mecab-ipadic-bpe-32k
 ```
