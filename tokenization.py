@@ -254,8 +254,15 @@ class BertTokenizerBase(object):
         self.ids_to_tokens = collections.OrderedDict(
             [(ids, tok) for tok, ids in self.vocab.items()])
         self.never_split = never_split
-        self.basic_tokenizer = None
-        self.subword_tokenizer = None
+
+    def preprocess_text(self, text):
+        return text
+
+    def basic_tokenize(self, text):
+        raise NotImplementedError
+
+    def subword_tokenize(self, text):
+        raise NotImplementedError
 
     def tokenize(self, text, with_info=False):
         output_tokens = []
@@ -273,9 +280,9 @@ class BertTokenizerBase(object):
                 output_token_infos.append(None)
                 continue
 
-            tokens, token_infos = self.basic_tokenizer.tokenize(text)
+            tokens, token_infos = self.basic_tokenize(text)
             for token, token_info in zip(tokens, token_infos):
-                for i, sub_token in enumerate(self.subword_tokenizer.tokenize(token)):
+                for i, sub_token in enumerate(self.subword_tokenize(token)):
                     output_tokens.append(sub_token)
                     if i == 0:
                         output_token_infos.append(token_info)
@@ -287,9 +294,6 @@ class BertTokenizerBase(object):
             return output_tokens, output_token_infos
         else:
             return output_tokens
-
-    def preprocess_text(self, text):
-        return text
 
     def convert_tokens_to_ids(self, tokens):
         """Converts a sequence of tokens into ids using the vocab."""
@@ -334,6 +338,11 @@ class MecabBertTokenizer(BertTokenizerBase):
 
         return text
 
+    def basic_tokenize(self, text):
+        return self.basic_tokenizer.tokenize(text)
+
+    def subword_tokenize(self, text):
+        return self.subword_tokenizer.tokenize(text)
 
 class MecabCharacterBertTokenizer(BertTokenizerBase):
     """Runs end-to-end tokenization: MeCab tokenization + WordPiece"""
@@ -362,6 +371,12 @@ class MecabCharacterBertTokenizer(BertTokenizerBase):
             text = unicodedata.normalize('NFKC', text)
 
         return text
+
+    def basic_tokenize(self, text):
+        return self.basic_tokenizer.tokenize(text)
+
+    def subword_tokenize(self, text):
+        return self.subword_tokenizer.tokenize(text)
 
     def convert_tokens_to_ids(self, tokens):
         """Converts a sequence of tokens into ids using the vocab."""
@@ -401,3 +416,9 @@ class JumanBertTokenizer(BertTokenizerBase):
             text = mojimoji.han_to_zen(text)
 
         return text
+
+    def basic_tokenize(self, text):
+        return self.basic_tokenizer.tokenize(text)
+
+    def subword_tokenize(self, text):
+        return self.subword_tokenizer.tokenize(text)
