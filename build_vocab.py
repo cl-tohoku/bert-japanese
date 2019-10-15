@@ -22,7 +22,7 @@ def main(args):
             with open(input_path, 'r') as input_file:
                 logger.info('Reading {}'.format(input_path))
                 for line in input_file:
-                    tokens, _ = tokenizer.tokenize(line.strip('\n'))
+                    tokens = tokenizer.tokenize(line.strip('\n'))
                     print(' '.join(tokens), file=concat_input_file)
 
         # train a SentencePiece model and store the vocabulary file to a temp directory
