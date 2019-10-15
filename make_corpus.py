@@ -112,8 +112,6 @@ if __name__ == "__main__":
         help='only extract sentences with no more than N characters [1024]')
     parser.add_argument('--mecab_dict_path', type=str,
         help='path to MeCab dictionary')
-    parser.add_argument('--do_normalize_text', action='store_true',
-        help='Apply Unicode normalization to the input text.')
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
