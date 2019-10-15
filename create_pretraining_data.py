@@ -37,6 +37,12 @@ flags.DEFINE_string(
 flags.DEFINE_string("vocab_file", None,
                     "The vocabulary file that the BERT model was trained on.")
 
+flags.DEFINE_string("subword_type", None,
+                    "The subword type of the vocabulary")
+
+flags.DEFINE_string("mecab_dict_path", None,
+                    "Path to a MeCab custom dictionary.")
+
 flags.DEFINE_bool(
     "do_lower_case", True,
     "Whether to lower case the input text. Should be True for uncased "
@@ -78,14 +84,12 @@ class TrainingInstance(object):
 
   def __str__(self):
     s = ""
-    s += "tokens: %s\n" % (" ".join(
-        [tokenization.printable_text(x) for x in self.tokens]))
+    s += "tokens: %s\n" % (" ".join(self.tokens))
     s += "segment_ids: %s\n" % (" ".join([str(x) for x in self.segment_ids]))
     s += "is_random_next: %s\n" % self.is_random_next
     s += "masked_lm_positions: %s\n" % (" ".join(
         [str(x) for x in self.masked_lm_positions]))
-    s += "masked_lm_labels: %s\n" % (" ".join(
-        [tokenization.printable_text(x) for x in self.masked_lm_labels]))
+    s += "masked_lm_labels: %s\n" % (" ".join(self.masked_lm_labels))
     s += "\n"
     return s
 
@@ -147,8 +151,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
 
     if inst_index < 20:
       tf.logging.info("*** Example ***")
-      tf.logging.info("tokens: %s" % " ".join(
-          [tokenization.printable_text(x) for x in instance.tokens]))
+      tf.logging.info("tokens: %s" % " ".join(instance.tokens))
 
       for feature_name in features.keys():
         feature = features[feature_name]
@@ -191,7 +194,7 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
   for input_file in input_files:
     with tf.gfile.GFile(input_file, "r") as reader:
       while True:
-        line = tokenization.convert_to_unicode(reader.readline())
+        line = reader.readline()
         if not line:
           break
         line = line.strip()
@@ -436,8 +439,20 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 def main(_):
   tf.logging.set_verbosity(tf.logging.INFO)
 
-  tokenizer = tokenization.FullTokenizer(
-      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case)
+  if FLAGS.subword_type == "bpe":
+    tokenizer = tokenization.MecabBertTokenizer(
+      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+      mecab_dict_path=FLAGS.mecab_dict_path)
+  elif FLAGS.subword_type == "char":
+    tokenizer = tokenization.MecabCharacterBertTokenizer(
+      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+      mecab_dict_path=FLAGS.mecab_dict_path)
+  elif FLAGS.subword_type == "word":
+    tokenizer = tokenization.MecabBertTokenizer(
+      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+      do_wordpiece_tokenize=False, mecab_dict_path=FLAGS.mecab_dict_path)
+  else:
+      raise RuntimeError("Invalid subword type.")
 
   input_files = []
   for input_pattern in FLAGS.input_file.split(","):
