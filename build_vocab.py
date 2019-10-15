@@ -1,9 +1,10 @@
-import tempfile
 import os
+import glob
+import tempfile
 import argparse
 
 import sentencepiece
-import tensorflow as tf
+from logzero import logger
 
 from tokenization import MecabBasicTokenizer
 
@@ -12,21 +13,20 @@ CONTROL_SYMBOLS = ['[CLS]', '[SEP]', '[MASK]']
 
 
 def main(args):
-    tf.logging.set_verbosity(tf.logging.INFO)
     tokenizer = MecabBasicTokenizer(do_lower_case=args.do_lower_case,
                                     mecab_dict_path=args.mecab_dict_path)
     with tempfile.TemporaryDirectory() as tempdir:
         # read input files and write to a temporary file
         concat_input_file = open(os.path.join(tempdir, 'input.txt'), 'w')
-        for input_file in tf.gfile.Glob(args.input_file):
-            with tf.gfile.GFile(input_file, 'r') as reader:
-                tf.logging.info('Reading {}'.format(input_file))
-                for line in reader:
+        for input_path in glob.glob(args.input_file):
+            with open(input_path, 'r') as input_file:
+                logger.info('Reading {}'.format(input_path))
+                for line in input_file:
                     tokens, _ = tokenizer.tokenize(line.strip('\n'))
                     print(' '.join(tokens), file=concat_input_file)
 
         # train a SentencePiece model and store the vocabulary file to a temp directory
-        tf.logging.info('Training a SentencePiece model')
+        logger.info('Training a SentencePiece model')
         commands = {
             'input': concat_input_file.name,
             'model_prefix': os.path.join(tempdir, 'sp'),
@@ -48,7 +48,7 @@ def main(args):
 
         # convert SentencePiece vocabulary into WordPiece format that is used in BERT
         with open(os.path.join(tempdir, 'sp.vocab')) as vocab_file, \
-             tf.gfile.GFile(args.output_file, 'w') as output_file:
+             open(args.output_file, 'w') as output_file:
             for line in vocab_file:
                 sp_token, _ = line.rstrip('\n').split('\t')
                 if sp_token == '<pad>':
