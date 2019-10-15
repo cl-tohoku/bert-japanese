@@ -30,7 +30,8 @@ logger = logging.getLogger(__name__)
 class MecabBertTokenizer(BertTokenizer):
     """BERT tokenizer for Japanese text; MeCab tokenization + WordPiece"""
 
-    def __init__(self, vocab_file, do_lower_case=False, do_basic_tokenize=True,
+    def __init__(self, vocab_file, do_lower_case=False,
+                 do_basic_tokenize=True, do_wordpiece_tokenize=True,
                  mecab_dict_path=None, unk_token='[UNK]', sep_token='[SEP]',
                  pad_token='[PAD]', cls_token='[CLS]', mask_token='[MASK]', **kwargs):
         """Constructs a MecabBertTokenizer.
@@ -60,12 +61,30 @@ class MecabBertTokenizer(BertTokenizer):
         self.ids_to_tokens = collections.OrderedDict(
             [(ids, tok) for tok, ids in self.vocab.items()])
         self.do_basic_tokenize = do_basic_tokenize
+        self.do_wordpiece_tokenize = do_wordpiece_tokenize
         if do_basic_tokenize:
             self.basic_tokenizer = MecabBasicTokenizer(do_lower_case=do_lower_case,
                                                        mecab_dict_path=mecab_dict_path)
 
-        self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab,
-                                                      unk_token=self.unk_token)
+        if do_wordpiece_tokenize:
+            self.wordpiece_tokenizer = WordpieceTokenizer(vocab=self.vocab,
+                                                          unk_token=self.unk_token)
+
+    def _tokenize(self, text):
+        split_tokens = []
+        if self.do_basic_tokenize:
+            tokens = self.basic_tokenizer.tokenize(text,
+                                                   never_split=self.all_special_tokens)
+        else:
+            tokens = [text]
+
+        if self.do_wordpiece_tokenize:
+            split_tokens = [sub_token for token in tokens
+                            for sub_token in self.wordpiece_tokenizer.tokenize(token)]
+        else:
+            split_tokens = tokens
+
+        return split_tokens
 
 
 class MecabCharacterBertTokenizer(BertTokenizer):

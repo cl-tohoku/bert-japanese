@@ -75,8 +75,8 @@ if __name__ == "__main__":
         help='Input raw text file (or comma-separated list of files).')
     parser.add_argument('--output_file', type=str, required=True,
         help='Output vocabulary file.')
-    parser.add_argument('--subword_type', choices=('bpe', 'char'), default='bpe',
-        help='Subword type ("bpe" or "char"). [bpe]')
+    parser.add_argument('--subword_type', choices=('bpe', 'char', 'word'),
+        help='Subword type. ("bpe", "char", or "word")')
     parser.add_argument('--vocab_size', type=int, default=32000,
         help='WordPiece vocabulary size. [32000]')
     parser.add_argument('--sentence_size', type=int, default=1000000,

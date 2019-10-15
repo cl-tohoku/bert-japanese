@@ -452,6 +452,10 @@ def main(_):
         tokenizer = tokenization.MecabCharacterBertTokenizer(
             vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
             mecab_dict_path=FLAGS.mecab_dict_path)
+    elif FLAGS.subword_type == 'none':
+        tokenizer = tokenization.MecabBertTokenizer(
+            vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
+            do_wordpiece_tokenize=False, mecab_dict_path=FLAGS.mecab_dict_path)
     else:
         raise RuntimeError('Invalid subword type.')
 
