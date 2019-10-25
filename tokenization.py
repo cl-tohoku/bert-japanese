@@ -71,7 +71,6 @@ class MecabBertTokenizer(BertTokenizer):
                                                           unk_token=self.unk_token)
 
     def _tokenize(self, text):
-        split_tokens = []
         if self.do_basic_tokenize:
             tokens = self.basic_tokenizer.tokenize(text,
                                                    never_split=self.all_special_tokens)
