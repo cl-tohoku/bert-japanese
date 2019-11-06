@@ -44,7 +44,7 @@ The all distributed models are pretrained on Japanese Wikipedia.
 To generate the corpus, [WikiExtractor](https://github.com/attardi/wikiextractor) is used to extract plain texts from a Wikipedia dump file.
 
 ```
-$ python WikiExtractor.py --output $CORPUS_DIR --bytes 512M --compress --json --links --namespaces 0 --no_templates --min_text_length 16 --processes 20 jawiki-20190901-pages-articles-multistream.xml.bz2
+$ python WikiExtractor.py --output /path/to/corpus/dir --bytes 512M --compress --json --links --namespaces 0 --no_templates --min_text_length 16 --processes 20 jawiki-20190901-pages-articles-multistream.xml.bz2
 ```
 
 Some preprocessing is applied to the extracted texts.
@@ -53,7 +53,7 @@ Preprocessing includes splitting texts into sentences, removing noisy markups, e
 Here we used [mecab-ipadic-NEologd](https://github.com/neologd/mecab-ipadic-neologd) to handle proper nouns correctly (i.e. not to treat `。` in named entities such as `モーニング娘。` and `ゲスの極み乙女。` as sentence boundaries.)
 
 ```sh
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 9 python make_corpus.py --input_file $CORPUS_DIR/AA/wiki_{}.bz2 --output_file $CORPUS_DIR/corpus.txt.{} --mecab_dict_path $NEOLOGD_DICT_DIR
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 9 python make_corpus.py --input_file /path/to/corpus/dir/AA/wiki_{}.bz2 --output_file /path/to/corpus/dir/corpus.txt.{} --mecab_dict_path /path/to/neologd/dict/dir/
 ```
 
 ### Building vocabulary
@@ -63,11 +63,10 @@ We used a implementaion of BPE in [SentencePiece](https://github.com/google/sent
 
 ```sh
 # For mecab-ipadic-bpe-32k models
-BASE_DIR="/work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-bpe-32k"
-$ python build_vocab.py --input_file "$CORPUS_DIR/corpus.txt.*" --output_file "$BASE_DIR/vocab.txt" --subword_type bpe --vocab_size 32000
+$ python build_vocab.py --input_file "/path/to/corpus/dir/corpus.txt.*" --output_file "/path/to/base/dir/vocab.txt" --subword_type bpe --vocab_size 32000
 
 # For mecab-ipadic-char-4k models
-$ python build_vocab.py --input_file "$CORPUS_DIR/corpus.txt.*" --output_file "$BASE_DIR/vocab.txt" --subword_type char --vocab_size 4000
+$ python build_vocab.py --input_file "/path/to/corpus/dir/corpus.txt.*" --output_file "/path/to/base/dir/vocab.txt" --subword_type char --vocab_size 4000
 ```
 
 ### Creating data for pretraining
@@ -78,19 +77,19 @@ Note that this process is highly memory-consuming and takes many hours.
 ```sh
 # For mecab-ipadic-bpe-32k w/ whole word masking
 # Note: each process will consume about 32GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-bpe-32k/do-whole-word-mask/pretraining-data.tf_record.{} --do_whole_word_mask True --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-bpe-32k/vocab.txt --subword_type bpe --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --do_whole_word_mask True --vocab_file /path/to/base/dir/vocab.txt --subword_type bpe --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
 
 # For mecab-ipadic-bpe-32k w/o whole word masking
 # Note: each process will consume about 32GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-bpe-32k/no-whole-word-mask/pretraining-data.tf_record.{} --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-bpe-32k/vocab.txt --subword_type bpe --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --vocab_file /path/to/base/dir/vocab.txt --subword_type bpe --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
 
 # For mecab-ipadic-char-4k w whole word masking
 # Note: each process will consume about 45GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-char-4k/do-whole-word-mask/pretraining-data.tf_record.{} --do_whole_word_mask True --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-char-4k/vocab.txt --subword_type char --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --do_whole_word_mask True --vocab_file /path/to/base/dir/vocab.txt --subword_type char --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
 
 # For mecab-ipadic-char-4k w/o whole word masking
 # Note: each process will consume about 45GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/corpus/corpus.txt.{} --output_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-char-4k/no-whole-word-mask/pretraining-data.tf_record.{} --vocab_file /work/m-suzuki/work/japanese-bert/jawiki-20190901/mecab-ipadic-char-4k/vocab.txt --subword_type char --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --vocab_file /path/to/base/dir/vocab.txt --subword_type char --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
 ```
 
 ### Training
