@@ -134,6 +134,28 @@ $ python3 run_pretraining.py \
 --num_tpu_cores=8
 ```
 
+For BERT-large models, v3-128 TPUs are used.
+
+```sh
+# For mecab-ipadic-bpe-32k BERT-large models
+python3 run_pretraining.py \
+--input_file="/path/to/pretraining-data.tf_record.*" \
+--output_dir="/path/to/output_dir" \
+--bert_config_file=bert_large_32k_config.json \
+--max_seq_length=512 \
+--max_predictions_per_seq=80 \
+--do_train=True \
+--train_batch_size=256 \
+--num_train_steps=1000000 \
+--learning_rate=1e-4 \
+--save_checkpoints_steps=100000 \
+--keep_checkpoint_max=10 \
+--use_tpu=True \
+--tpu_name=<tpu name> \
+--num_tpu_cores=128
+```
+
+
 ## Acknowledgments
 
 For training models, we used Cloud TPUs provided by [TensorFlow Research Cloud](https://www.tensorflow.org/tfrc/) program.
