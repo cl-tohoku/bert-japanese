@@ -145,7 +145,7 @@ class MecabBasicTokenizer(object):
     """Runs basic tokenization with MeCab morphological parser."""
 
     def __init__(self, do_lower_case=False, mecab_dict_path=None, preserve_spaces=False):
-        """Constructs a BasicTokenizer.
+        """Constructs a MecabBasicTokenizer.
 
         Args:
             **do_lower_case**: (`optional`) boolean (default True)
@@ -209,7 +209,7 @@ class CharacterTokenizer(object):
 
     def __init__(self, vocab, unk_token,
                  max_input_chars_per_word=100, with_markers=True):
-        """Constructs a BasicTokenizer.
+        """Constructs a CharacterTokenizer.
         Args:
             vocab: Vocabulary object.
             unk_token: A special symbol for out-of-vocabulary token.
