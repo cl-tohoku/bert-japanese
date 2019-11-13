@@ -16,7 +16,7 @@ We are planning to release `BERT-large` models in the future.
     - **`mecab-ipadic-bpe-32k`**: texts are first tokenized with [MeCab](https://taku910.github.io/mecab) morphological parser and then split into subwords by WordPiece. The vocabulary size is 32000.
     - **`mecab-ipadic-char-4k`**: texts are first tokenized with MeCab and then split into characters (information of MeCab tokenization is preserved). The vocabulary size is 4000.
 - All the models are trained with the same configuration as the original BERT; 512 tokens per instance, 256 instances per batch, and 1M training steps.
-- We also distribute models trained with Whole Word Masking enabled; all of the tokens corresponding to a word (tokenized by MeCab) are masked at once.
+- We also distribute models trained with **Whole Word Masking** enabled; all of the tokens corresponding to a word (tokenized by MeCab) are masked at once.
 - Along with the models, we provide [tokenizers](https://github.com/singletongue/japanese-bert/blob/master/tokenization.py), which are compatible with ones defined in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
 
 ## Usage
