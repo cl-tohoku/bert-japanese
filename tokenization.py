@@ -144,7 +144,8 @@ class MecabCharacterBertTokenizer(BertTokenizer):
 class MecabBasicTokenizer(object):
     """Runs basic tokenization with MeCab morphological parser."""
 
-    def __init__(self, do_lower_case=False, mecab_dict_path=None, preserve_spaces=False):
+    def __init__(self, do_lower_case=False, never_split=None,
+                 mecab_dict_path=None, preserve_spaces=False):
         """Constructs a MecabBasicTokenizer.
 
         Args:
@@ -155,7 +156,11 @@ class MecabBasicTokenizer(object):
             **preserve_spaces**: (`optional`) boolean (default True)
                 Whether to preserve whitespaces in the output tokens.
         """
+        if never_split is None:
+            never_split = []
+
         self.do_lower_case = do_lower_case
+        self.never_split = never_split
 
         import MeCab
         if mecab_dict_path is not None:
@@ -165,8 +170,9 @@ class MecabBasicTokenizer(object):
 
         self.preserve_spaces = preserve_spaces
 
-    def tokenize(self, text, with_info=False, **kwargs):
+    def tokenize(self, text, never_split=None, with_info=False, **kwargs):
         """Tokenizes a piece of text."""
+        never_split = self.never_split + (never_split if never_split is not None else [])
         text = unicodedata.normalize('NFKC', text)
 
         tokens = []
@@ -189,7 +195,7 @@ class MecabBasicTokenizer(object):
                 tokens.append(text[cursor:token_start])
                 token_infos.append(None)
 
-            if self.do_lower_case:
+            if self.do_lower_case and token not in never_split:
                 token = token.lower()
 
             tokens.append(token)
@@ -230,7 +236,7 @@ class CharacterTokenizer(object):
             output = ["a", "p", "p", "l", "e"]          (if self.with_markers is False)
         Args:
             text: A single token or whitespace separated tokens.
-                This should have already been passed through `BasicTokenizer.
+                This should have already been passed through `BasicTokenizer`.
         Returns:
             A list of characters.
         """
