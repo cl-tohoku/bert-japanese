@@ -1,13 +1,6 @@
-# BERT Models for Japanese NLP
+# BERT Models for Japanese text
 
-BERT models trained on Japanese texts.
-
-## Pretrained models
-
-Pretrained models can be downloaded from [Releases](https://github.com/singletongue/japanese-bert/releases).
-
-At present, `BERT-base` models are available.
-We are planning to release `BERT-large` models in the future.
+BERT models trained on Japanese text.
 
 ## Features
 
@@ -18,6 +11,35 @@ We are planning to release `BERT-large` models in the future.
 - All the models are trained with the same configuration as the original BERT; 512 tokens per instance, 256 instances per batch, and 1M training steps.
 - We also distribute models trained with **Whole Word Masking** enabled; all of the tokens corresponding to a word (tokenized by MeCab) are masked at once.
 - Along with the models, we provide [tokenizers](https://github.com/singletongue/japanese-bert/blob/master/tokenization.py), which are compatible with ones defined in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
+
+## Pretrained models
+
+- BERT-base models (12-layer, 768-hidden, 12-heads, 110M parameters)
+    - **[`BERT-base_mecab-ipadic-bpe-32k.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-bpe-32k.tar.xz)** (2.1GB)
+        - MeCab + WordPiece tokenization.
+    - **[`BERT-base_mecab-ipadic-bpe-32k_whole-word-mask.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-bpe-32k_whole-word-mask.tar.xz)** (2.1GB)
+        - MeCab + WordPiece tokenization. Whole Word Masking is enabled during training.
+    - **[`BERT-base_mecab-ipadic-char-4k.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-char-4k.tar.xz)** (1.6GB)
+        - Character tokenization.
+    - **[`BERT-base_mecab-ipadic-char-4k_whole-word-mask.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-char-4k_whole-word-mask.tar.xz)** (1.6GB)
+        - Character tokenization. Whole Word Masking is enabled during training (word boundaries are determined by MeCab).
+
+All the model archives include following files.
+`pytorch_model.bin` and `tf_model.h5` are compatible with [Transformers](https://github.com/huggingface/transformers).
+
+```
+.
+├── config.json
+├── model.ckpt.data-00000-of-00001
+├── model.ckpt.index
+├── model.ckpt.meta
+├── pytorch_model.bin
+├── tf_model.h5
+└── vocab.txt
+```
+
+At present, only `BERT-base` models are available.
+We are planning to release `BERT-large` models in the future.
 
 ## Usage
 
