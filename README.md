@@ -1,4 +1,4 @@
-# BERT Models for Japanese text
+# BERT Models for Japanese Text
 
 BERT models trained on Japanese text.
 
