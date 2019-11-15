@@ -54,7 +54,7 @@ For just using the models with [`tokenizers.py`](https://github.com/singletongue
 
 If you wish to pretrain a model:
 
-- [Tensorflow](https://github.com/tensorflow/tensorflow) (== 1.1.14)
+- [TensorFlow](https://github.com/tensorflow/tensorflow) (== 1.1.14)
 - [SentencePiece](https://github.com/google/sentencepiece)
 - [logzero](https://github.com/metachris/logzero)
 
@@ -155,6 +155,21 @@ $ python3 run_pretraining.py \
 --tpu_name=<tpu name> \
 --num_tpu_cores=8
 ```
+
+## Related Work
+
+- Original BERT model by Google Research Team
+    - https://github.com/google-research/bert
+    - https://github.com/tensorflow/models/tree/master/official/nlp/bert (for TensorFlow 2.0)
+- Juman-tokenized Japanese BERT model
+    - Author: Kurohashi-Kawahara Laboratory, Kyoto University
+    - http://nlp.ist.i.kyoto-u.ac.jp/index.php?BERT日本語Pretrainedモデル
+- Sentencepiece Japanese BERT model
+    - Author: Yohei Kikuta
+    - https://github.com/yoheikikuta/bert-japanese
+- Sentencepiece Japanese BERT model, trained on SNS corpus
+    - Author: Hottolink, Inc.
+    - https://github.com/hottolink/hottoSNS-bert
 
 ## Acknowledgments
 
