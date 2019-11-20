@@ -54,7 +54,7 @@ For just using the models with [`tokenizers.py`](https://github.com/singletongue
 
 If you wish to pretrain a model:
 
-- [TensorFlow](https://github.com/tensorflow/tensorflow) (== 1.1.14)
+- [TensorFlow](https://github.com/tensorflow/tensorflow) (== 1.14.0)
 - [SentencePiece](https://github.com/google/sentencepiece)
 - [logzero](https://github.com/metachris/logzero)
 
