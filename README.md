@@ -10,7 +10,7 @@ BERT models trained on Japanese text.
     - **`mecab-ipadic-char-4k`**: texts are first tokenized with MeCab and then split into characters (information of MeCab tokenization is preserved). The vocabulary size is 4000.
 - All the models are trained with the same configuration as the original BERT; 512 tokens per instance, 256 instances per batch, and 1M training steps.
 - We also distribute models trained with **Whole Word Masking** enabled; all of the tokens corresponding to a word (tokenized by MeCab) are masked at once.
-- Along with the models, we provide [tokenizers](https://github.com/singletongue/japanese-bert/blob/master/tokenization.py), which are compatible with ones defined in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
+- Along with the models, we provide [tokenizers](tokenization.py), which are compatible with ones defined in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
 
 ## Pretrained models
 
@@ -43,11 +43,11 @@ We are planning to release `BERT-large` models in the future.
 
 ## Usage
 
-Refer to [`masked_lm_example.ipynb`](https://github.com/singletongue/japanese-bert/blob/master/masked_lm_example.ipynb).
+Refer to [`masked_lm_example.ipynb`](masked_lm_example.ipynb).
 
 ## Requirements
 
-For just using the models with [`tokenizers.py`](https://github.com/singletongue/japanese-bert/blob/master/tokenization.py):
+For just using the models with [`tokenizers.py`](tokenization.py):
 
 - [Transformers](https://github.com/huggingface/transformers) (>= 2.1.1)
 - [mecab-python3](https://github.com/SamuraiT/mecab-python3) with [MeCab](https://taku910.github.io/mecab) installed
