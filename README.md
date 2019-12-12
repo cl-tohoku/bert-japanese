@@ -50,7 +50,7 @@ Refer to [`masked_lm_example.ipynb`](masked_lm_example.ipynb).
 For just using the models with [`tokenizers.py`](tokenization.py):
 
 - [Transformers](https://github.com/huggingface/transformers) (>= 2.1.1)
-- [mecab-python3](https://github.com/SamuraiT/mecab-python3) with [MeCab](https://taku910.github.io/mecab) installed
+- [mecab-python3](https://github.com/SamuraiT/mecab-python3) with [MeCab](https://taku910.github.io/mecab) and its dictionary `mecab-ipadic-2.7.0-20070801` installed
 
 If you wish to pretrain a model:
 
