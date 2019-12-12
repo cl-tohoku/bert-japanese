@@ -1,6 +1,7 @@
-# BERT Models for Japanese Text
+# Pretrained Japanese BERT models
 
-BERT models trained on Japanese text.
+This is a repository of pretrained Japanese BERT models.
+The pretrained models are available along with the source code of pretraining.
 
 ## Features
 
