@@ -3,6 +3,9 @@
 This is a repository of pretrained Japanese BERT models.
 The pretrained models are available along with the source code of pretraining.
 
+**Update (Dec. 15 2019)**: Our pretrained models are now included in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
+You can use our models in the same way as other models in Transformers.
+
 ## Features
 
 - All the models are trained on Japanese Wikipedia.
@@ -42,15 +45,11 @@ All the model archives include following files.
 At present, only `BERT-base` models are available.
 We are planning to release `BERT-large` models in the future.
 
-## Usage
-
-Refer to [`masked_lm_example.ipynb`](masked_lm_example.ipynb).
-
 ## Requirements
 
-For just using the models with [`tokenizers.py`](tokenization.py):
+For just using the models:
 
-- [Transformers](https://github.com/huggingface/transformers) (>= 2.1.1)
+- [Transformers](https://github.com/huggingface/transformers) (>= 2.2.2)
 - [mecab-python3](https://github.com/SamuraiT/mecab-python3) with [MeCab](https://taku910.github.io/mecab) and its dictionary `mecab-ipadic-2.7.0-20070801` installed
 
 If you wish to pretrain a model:
@@ -58,6 +57,10 @@ If you wish to pretrain a model:
 - [TensorFlow](https://github.com/tensorflow/tensorflow) (== 1.14.0)
 - [SentencePiece](https://github.com/google/sentencepiece)
 - [logzero](https://github.com/metachris/logzero)
+
+## Usage
+
+Please refer to [`masked_lm_example.ipynb`](masked_lm_example.ipynb).
 
 ## Details of pretraining
 
