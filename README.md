@@ -168,6 +168,9 @@ $ python3 run_pretraining.py \
 - Juman-tokenized Japanese BERT model
     - Author: Kurohashi-Kawahara Laboratory, Kyoto University
     - http://nlp.ist.i.kyoto-u.ac.jp/index.php?BERT日本語Pretrainedモデル
+- MeCab-Jumandic-tokenized Japanese BERT model (trained with a large mini-batch size)
+    - Author: National Institute of Information and Communications Technology (NICT)
+    - https://alaginrc.nict.go.jp/nict-bert/index.html
 - Sentencepiece Japanese BERT model
     - Author: Yohei Kikuta
     - https://github.com/yoheikikuta/bert-japanese
