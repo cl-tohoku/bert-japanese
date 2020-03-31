@@ -160,6 +160,12 @@ $ python3 run_pretraining.py \
 --num_tpu_cores=8
 ```
 
+## Licenses
+
+The pretrained models are distributed under the terms of the [Creative Commons Attribution-ShareAlike 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
+
+The codes in this repository are distributed under the MIT License.
+
 ## Related Work
 
 - Original BERT model by Google Research Team
