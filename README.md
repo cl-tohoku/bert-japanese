@@ -164,7 +164,7 @@ $ python3 run_pretraining.py \
 
 The pretrained models are distributed under the terms of the [Creative Commons Attribution-ShareAlike 3.0](https://creativecommons.org/licenses/by-sa/3.0/).
 
-The codes in this repository are distributed under the MIT License.
+The codes in this repository are distributed under the Apache License 2.0.
 
 ## Related Work
 
