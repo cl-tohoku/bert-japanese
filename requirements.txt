@@ -3,7 +3,7 @@ fugashi
 ipadic==1.0.0
 logzero
 sentencepiece>=0.1.91
-tensorflow==2.3.0
+tensorflow==2.4.0
 tensorflow-datasets>=3.2.0
 tf-models-official==2.3.0
 tqdm
