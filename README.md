@@ -1,163 +1,212 @@
 # Pretrained Japanese BERT models
 
 This is a repository of pretrained Japanese BERT models.
-The pretrained models are available along with the source code of pretraining.
+The models are available in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
 
-**Update (Dec. 15 2019)**: Our pretrained models are now included in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
-You can use our models in the same way as other models in Transformers.
+- Model hub: [https://huggingface.co/cl-tohoku]
 
-## Features
+For information on the previous versions of our pretrained models, see the [v1.0](https://github.com/cl-tohoku/bert-japanese/releases/tag/v1.0) tag of this repository.
 
-- All the models are trained on Japanese Wikipedia.
-- We trained models with different tokenization algorithms.
-    - **`mecab-ipadic-bpe-32k`**: texts are first tokenized with [MeCab](https://taku910.github.io/mecab) morphological parser and then split into subwords by WordPiece. The vocabulary size is 32000.
-    - **`mecab-ipadic-char-4k`**: texts are first tokenized with MeCab and then split into characters (information of MeCab tokenization is preserved). The vocabulary size is 4000.
-- All the models are trained with the same configuration as the original BERT; 512 tokens per instance, 256 instances per batch, and 1M training steps.
-- We also distribute models trained with **Whole Word Masking** enabled; all of the tokens corresponding to a word (tokenized by MeCab) are masked at once.
-- Along with the models, we provide [tokenizers](tokenization.py), which are compatible with ones defined in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
+## Model Architecture
 
-## Pretrained models
+The architecture of our models are the same as the original BERT models proposed by Google.
+- **BERT-base** models consist of 12 layers, 768 dimensions of hidden states, and 12 attention heads.
+- **BERT-large** models consist of 24 layers, 1024 dimensions of hidden states, and 16 attention heads.
 
-- BERT-base models (12-layer, 768-hidden, 12-heads, 110M parameters)
-    - **[`BERT-base_mecab-ipadic-bpe-32k.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-bpe-32k.tar.xz)** (2.1GB)
-        - MeCab + WordPiece tokenization.
-    - **[`BERT-base_mecab-ipadic-bpe-32k_whole-word-mask.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-bpe-32k_whole-word-mask.tar.xz)** (2.1GB)
-        - MeCab + WordPiece tokenization. Whole Word Masking is enabled during training.
-    - **[`BERT-base_mecab-ipadic-char-4k.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-char-4k.tar.xz)** (1.6GB)
-        - Character tokenization.
-    - **[`BERT-base_mecab-ipadic-char-4k_whole-word-mask.tar.xz`](https://www.nlp.ecei.tohoku.ac.jp/~m-suzuki/bert-japanese/BERT-base_mecab-ipadic-char-4k_whole-word-mask.tar.xz)** (1.6GB)
-        - Character tokenization. Whole Word Masking is enabled during training (word boundaries are determined by MeCab).
+## Training Data
 
-All the model archives include following files.
-`pytorch_model.bin` and `tf_model.h5` are compatible with [Transformers](https://github.com/huggingface/transformers).
+The models are trained on the Japanese version of Wikipedia.
+The training corpus is generated from the Wikipedia Cirrussearch dump file as of August 31, 2020.
 
-```
-.
-├── config.json
-├── model.ckpt.data-00000-of-00001
-├── model.ckpt.index
-├── model.ckpt.meta
-├── pytorch_model.bin
-├── tf_model.h5
-└── vocab.txt
-```
-
-At present, only `BERT-base` models are available.
-We are planning to release `BERT-large` models in the future.
-
-## Requirements
-
-For just using the models:
-
-- [Transformers](https://github.com/huggingface/transformers) (>= 2.2.2)
-- [mecab-python3](https://github.com/SamuraiT/mecab-python3) with [MeCab](https://taku910.github.io/mecab) and its dictionary `mecab-ipadic-2.7.0-20070801` installed
-
-If you wish to pretrain a model:
-
-- [TensorFlow](https://github.com/tensorflow/tensorflow) (== 1.14.0)
-- [SentencePiece](https://github.com/google/sentencepiece)
-- [logzero](https://github.com/metachris/logzero)
-
-## Usage
-
-Please refer to [`masked_lm_example.ipynb`](masked_lm_example.ipynb).
-
-## Details of pretraining
-
-### Corpus generation and preprocessing
-
-The all distributed models are pretrained on Japanese Wikipedia.
-To generate the corpus, [WikiExtractor](https://github.com/attardi/wikiextractor) is used to extract plain texts from a Wikipedia dump file.
-
-```
-$ python WikiExtractor.py --output /path/to/corpus/dir --bytes 512M --compress --json --links --namespaces 0 --no_templates --min_text_length 16 --processes 20 jawiki-20190901-pages-articles-multistream.xml.bz2
-```
-
-Some preprocessing is applied to the extracted texts.
-Preprocessing includes splitting texts into sentences, removing noisy markups, etc.
-
-Here we used [mecab-ipadic-NEologd](https://github.com/neologd/mecab-ipadic-neologd) to handle proper nouns correctly (i.e. not to treat `。` in named entities such as `モーニング娘。` and `ゲスの極み乙女。` as sentence boundaries.)
+The generated corpus files are 4.0GB in total, consisting of approximately 30M sentences.
+We used the [MeCab](https://taku910.github.io/mecab/) morphological parser with [mecab-ipadic-NEologd](https://github.com/neologd/mecab-ipadic-neologd) dictionary to split texts into sentences.
 
 ```sh
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 9 python make_corpus.py --input_file /path/to/corpus/dir/AA/wiki_{}.bz2 --output_file /path/to/corpus/dir/corpus.txt.{} --mecab_dict_path /path/to/neologd/dict/dir/
+$ WORK_DIR="$HOME/work/bert-japanese"
+
+$ python make_corpus_wiki.py \
+--input_file jawiki-20200831-cirrussearch-content.json.gz \
+--output_file $WORK_DIR/corpus/jawiki-20200831/corpus.txt \
+--min_text_length 10 \
+--max_text_length 200 \
+--mecab_option "-r $HOME/local/etc/mecabrc -d $HOME/local/lib/mecab/dic/mecab-ipadic-neologd-v0.0.7"
+
+# Split corpus files for parallel preprocessing of the files
+$ python merge_split_corpora.py \
+--input_files $WORK_DIR/corpus/jawiki-20200831/corpus.txt \
+--output_dir $WORK_DIR/corpus/jawiki-20200831 \
+--num_files 8
+
+# Sample some lines for training tokenizers
+$ cat $WORK_DIR/corpus/jawiki-20200831/corpus.txt|grep -v '^$'|shuf|head -n 1000000 \
+> $WORK_DIR/corpus/jawiki-20200831/corpus_sampled.txt
 ```
 
-### Building vocabulary
+## Tokenization
 
-Same as the original BERT, we used byte-pair-encoding (BPE) to obtain subwords.
-We used a implementaion of BPE in [SentencePiece](https://github.com/google/sentencepiece).
+For each of BERT-base and BERT-large, we provide two models with different tokenization methods.
+
+- For **`wordpiece`** models, the texts are first tokenized by MeCab with the Unidic 2.1.2 dictionary and then split into subwords by the WordPiece algorithm.
+  The vocabulary size is 32768.
+- For **`character`** models, the texts are first tokenized by MeCab with the Unidic 2.1.2 dictionary and then split into characters.
+  The vocabulary size is 6144.
+
+We used [`fugashi`](https://github.com/polm/fugashi) and [`unidic-lite`](https://github.com/polm/unidic-lite) packages for the tokenization.
 
 ```sh
-# For mecab-ipadic-bpe-32k models
-$ python build_vocab.py --input_file "/path/to/corpus/dir/corpus.txt.*" --output_file "/path/to/base/dir/vocab.txt" --subword_type bpe --vocab_size 32000
+$ WORK_DIR="$HOME/work/bert-japanese"
 
-# For mecab-ipadic-char-4k models
-$ python build_vocab.py --input_file "/path/to/corpus/dir/corpus.txt.*" --output_file "/path/to/base/dir/vocab.txt" --subword_type char --vocab_size 4000
+# WordPiece (unidic_lite)
+$ TOKENIZERS_PARALLELISM=false python train_tokenizer.py \
+--input_files $WORK_DIR/corpus/jawiki-20200831/corpus_sampled.txt \
+--output_dir $WORK_DIR/tokenizers/jawiki-20200831/wordpiece_unidic_lite \
+--tokenizer_type wordpiece \
+--mecab_dic_type unidic_lite \
+--vocab_size 32768 \
+--limit_alphabet 6129 \
+--num_unused_tokens 10
+
+# Character
+$ head -n 6144 $WORK_DIR/tokenizers/jawiki-20200831/wordpiece_unidic_lite/vocab.txt \
+> $WORK_DIR/tokenizers/jawiki-20200831/character/vocab.txt
 ```
 
-### Creating data for pretraining
+## Training
 
-With the vocabulary and text files above, we create dataset files for pretraining.
-Note that this process is highly memory-consuming and takes many hours.
+The models are trained with the same configuration as the original BERT; 512 tokens per instance, 256 instances per batch, and 1M training steps.
+For training of the MLM (masked language modeling) objective, we introduced **whole word masking** in which all of the subword tokens corresponding to a single word (tokenized by MeCab) are masked at once.
+
+For training of each model, we used a v3-8 instance of Cloud TPUs provided by [TensorFlow Research Cloud program](https://www.tensorflow.org/tfrc/).
+The training took about 5 days and 14 days for BERT-base and BERT-large models, respectively.
+
+### Creation of the pretraining data
 
 ```sh
-# For mecab-ipadic-bpe-32k w/ whole word masking
-# Note: each process will consume about 32GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --do_whole_word_mask True --vocab_file /path/to/base/dir/vocab.txt --subword_type bpe --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+$ WORK_DIR="$HOME/work/bert-japanese"
 
-# For mecab-ipadic-bpe-32k w/o whole word masking
-# Note: each process will consume about 32GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --vocab_file /path/to/base/dir/vocab.txt --subword_type bpe --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+# WordPiece (unidic_lite)
+$ mkdir -p $WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/pretraining_data
+# It takes 3h and 420GB RAM, producing 43M instances
+$ seq -f %02g 1 8|xargs -L 1 -I {} -P 8 python create_pretraining_data.py \
+--input_file $WORK_DIR/corpus/jawiki-20200831/corpus_{}.txt \
+--output_file $WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/pretraining_data/pretraining_data_{}.tfrecord.gz \
+--vocab_file $WORK_DIR/tokenizers/jawiki-20200831/wordpiece_unidic_lite/vocab.txt \
+--tokenizer_type wordpiece \
+--mecab_dic_type unidic_lite \
+--do_whole_word_mask \
+--gzip_compress \
+--max_seq_length 512 \
+--max_predictions_per_seq 80 \
+--dupe_factor 10
 
-# For mecab-ipadic-char-4k w whole word masking
-# Note: each process will consume about 45GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --do_whole_word_mask True --vocab_file /path/to/base/dir/vocab.txt --subword_type char --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
-
-# For mecab-ipadic-char-4k w/o whole word masking
-# Note: each process will consume about 45GB RAM
-$ seq -f %02g 0 8|xargs -L 1 -I {} -P 1 python create_pretraining_data.py --input_file /path/to/corpus/dir/corpus.txt.{} --output_file /path/to/base/dir/pretraining-data.tf_record.{} --vocab_file /path/to/base/dir/vocab.txt --subword_type char --max_seq_length 512 --max_predictions_per_seq 80 --masked_lm_prob 0.15
+# Character
+$ mkdir $WORK_DIR/bert/jawiki-20200831/character/pretraining_data
+# It takes 4h10m and 615GB RAM, producing 55M instances
+$ seq -f %02g 1 8|xargs -L 1 -I {} -P 8 python create_pretraining_data.py \
+--input_file $WORK_DIR/corpus/jawiki-20200831/corpus_{}.txt \
+--output_file $WORK_DIR/bert/jawiki-20200831/character/pretraining_data/pretraining_data_{}.tfrecord.gz \
+--vocab_file $WORK_DIR/tokenizers/jawiki-20200831/character/vocab.txt \
+--tokenizer_type character \
+--mecab_dic_type unidic_lite \
+--do_whole_word_mask \
+--gzip_compress \
+--max_seq_length 512 \
+--max_predictions_per_seq 80 \
+--dupe_factor 10
 ```
 
-### Training
+### Training of the models
 
-We used [Cloud TPUs](https://cloud.google.com/tpu/) to run pre-training.
-
-For BERT-base models, v3-8 TPUs are used.
+**Note:** all the necessary files need to be stored in a Google Cloud Storage (GCS) bucket.
 
 ```sh
-# For mecab-ipadic-bpe-32k BERT-base models
-$ python3 run_pretraining.py \
---input_file="/path/to/pretraining-data.tf_record.*" \
---output_dir="/path/to/output_dir" \
---bert_config_file=bert_base_32k_config.json \
+# BERT-base, WordPiece (unidic_lite)
+$ ctpu up -name tpu01 -tpu-size v3-8 -tf-version 2.3
+$ cd /usr/share/models
+$ sudo pip3 install -r official/requirements.txt
+$ tmux
+$ export PYTHONPATH="$PYTHONPATH:/usr/share/tpu/models"
+$ WORK_DIR="gs://<your GCS bucket name>/bert-japanese"
+$ python3 official/nlp/bert/run_pretraining.py \
+--input_files="$WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/pretraining_data/pretraining_data_*.tfrecord" \
+--model_dir="$WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/bert-base" \
+--bert_config_file="$WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/bert-base/config.json" \
 --max_seq_length=512 \
 --max_predictions_per_seq=80 \
---do_train=True \
 --train_batch_size=256 \
---num_train_steps=1000000 \
 --learning_rate=1e-4 \
---save_checkpoints_steps=100000 \
---keep_checkpoint_max=10 \
---use_tpu=True \
---tpu_name=<tpu name> \
---num_tpu_cores=8
+--num_train_epochs=100 \
+--num_steps_per_epoch=10000 \
+--optimizer_type=adamw \
+--warmup_steps=10000 \
+--distribution_strategy=tpu \
+--tpu=tpu01
 
-# For mecab-ipadic-char-4k BERT-base models
-$ python3 run_pretraining.py \
---input_file="/path/to/pretraining-data.tf_record.*" \
---output_dir="/path/to/output_dir" \
---bert_config_file=bert_base_4k_config.json \
+# BERT-base, Character
+$ ctpu up -name tpu02 -tpu-size v3-8 -tf-version 2.3
+$ cd /usr/share/models
+$ sudo pip3 install -r official/requirements.txt
+$ tmux
+$ export PYTHONPATH="$PYTHONPATH:/usr/share/tpu/models"
+$ WORK_DIR="gs://<your GCS bucket name>/bert-japanese"
+$ python3 official/nlp/bert/run_pretraining.py \
+--input_files="$WORK_DIR/bert/jawiki-20200831/character/pretraining_data/pretraining_data_*.tfrecord" \
+--model_dir="$WORK_DIR/bert/jawiki-20200831/character/bert-base" \
+--bert_config_file="$WORK_DIR/bert/jawiki-20200831/character/bert-base/config.json" \
 --max_seq_length=512 \
 --max_predictions_per_seq=80 \
---do_train=True \
 --train_batch_size=256 \
---num_train_steps=1000000 \
 --learning_rate=1e-4 \
---save_checkpoints_steps=100000 \
---keep_checkpoint_max=10 \
---use_tpu=True \
---tpu_name=<tpu name> \
---num_tpu_cores=8
+--num_train_epochs=100 \
+--num_steps_per_epoch=10000 \
+--optimizer_type=adamw \
+--warmup_steps=10000 \
+--distribution_strategy=tpu \
+--tpu=tpu02
+
+# BERT-large, WordPiece (unidic_lite)
+$ ctpu up -name tpu03 -tpu-size v3-8 -tf-version 2.3
+$ cd /usr/share/models
+$ sudo pip3 install -r official/requirements.txt
+$ tmux
+$ export PYTHONPATH="$PYTHONPATH:/usr/share/tpu/models"
+$ WORK_DIR="gs://<your GCS bucket name>/bert-japanese"
+$ python3 official/nlp/bert/run_pretraining.py \
+--input_files="$WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/pretraining_data/pretraining_data_*.tfrecord" \
+--model_dir="$WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/bert-large" \
+--bert_config_file="$WORK_DIR/bert/jawiki-20200831/wordpiece_unidic_lite/bert-large/config.json" \
+--max_seq_length=512 \
+--max_predictions_per_seq=80 \
+--train_batch_size=256 \
+--learning_rate=5e-5 \
+--num_train_epochs=100 \
+--num_steps_per_epoch=10000 \
+--optimizer_type=adamw \
+--warmup_steps=10000 \
+--distribution_strategy=tpu \
+--tpu=tpu03
+
+# BERT-large, Character
+$ ctpu up -name tpu04 -tpu-size v3-8 -tf-version 2.3
+$ cd /usr/share/models
+$ sudo pip3 install -r official/requirements.txt
+$ tmux
+$ export PYTHONPATH="$PYTHONPATH:/usr/share/tpu/models"
+$ WORK_DIR="gs://<your GCS bucket name>/bert-japanese"
+$ python3 official/nlp/bert/run_pretraining.py \
+--input_files="$WORK_DIR/bert/jawiki-20200831/character/pretraining_data/pretraining_data_*.tfrecord" \
+--model_dir="$WORK_DIR/bert/jawiki-20200831/character/bert-large" \
+--bert_config_file="$WORK_DIR/bert/jawiki-20200831/character/bert-large/config.json" \
+--max_seq_length=512 \
+--max_predictions_per_seq=80 \
+--train_batch_size=256 \
+--learning_rate=5e-5 \
+--num_train_epochs=100 \
+--num_steps_per_epoch=10000 \
+--optimizer_type=adamw \
+--warmup_steps=10000 \
+--distribution_strategy=tpu \
+--tpu=tpu04
 ```
 
 ## Licenses
@@ -186,4 +235,4 @@ The codes in this repository are distributed under the Apache License 2.0.
 
 ## Acknowledgments
 
-For training models, we used Cloud TPUs provided by [TensorFlow Research Cloud](https://www.tensorflow.org/tfrc/) program.
+The models are trained with Cloud TPUs provided by [TensorFlow Research Cloud](https://www.tensorflow.org/tfrc/) program.

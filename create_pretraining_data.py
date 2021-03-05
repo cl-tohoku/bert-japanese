@@ -1,5 +1,4 @@
-# coding=utf-8
-# Copyright 2018 The Google AI Language Team Authors.
+# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,18 +11,21 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# ==============================================================================
 """Create masked LM/next sentence masked_lm TF examples for BERT."""
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
 import collections
 import random
-import tokenization
+
+from absl import app
+from absl import flags
+from absl import logging
 import tensorflow as tf
 
-flags = tf.flags
+from tokenization import BertJapaneseTokenizerForPretraining
 
 FLAGS = flags.FLAGS
 
@@ -37,20 +39,19 @@ flags.DEFINE_string(
 flags.DEFINE_string("vocab_file", None,
                     "The vocabulary file that the BERT model was trained on.")
 
-flags.DEFINE_string("subword_type", None,
-                    "The subword type of the vocabulary")
+flags.DEFINE_string("tokenizer_type", None,
+                    "Tokenizer type (bpe, wordpiece).")
 
-flags.DEFINE_string("mecab_dict_path", None,
-                    "Path to a MeCab custom dictionary.")
-
-flags.DEFINE_bool(
-    "do_lower_case", True,
-    "Whether to lower case the input text. Should be True for uncased "
-    "models and False for cased models.")
+flags.DEFINE_string("mecab_dic_type", None,
+                    "Pre-tokenizer type.")
 
 flags.DEFINE_bool(
     "do_whole_word_mask", False,
     "Whether to use whole word masking rather than per-WordPiece masking.")
+
+flags.DEFINE_bool(
+    "gzip_compress", False,
+    "Whether to use `GZIP` compress option to get compressed TFRecord files.")
 
 flags.DEFINE_integer("max_seq_length", 128, "Maximum sequence length.")
 
@@ -84,12 +85,13 @@ class TrainingInstance(object):
 
   def __str__(self):
     s = ""
-    s += "tokens: %s\n" % (" ".join(self.tokens))
+    s += "tokens: %s\n" % (" ".join([x for x in self.tokens]))
     s += "segment_ids: %s\n" % (" ".join([str(x) for x in self.segment_ids]))
     s += "is_random_next: %s\n" % self.is_random_next
     s += "masked_lm_positions: %s\n" % (" ".join(
         [str(x) for x in self.masked_lm_positions]))
-    s += "masked_lm_labels: %s\n" % (" ".join(self.masked_lm_labels))
+    s += "masked_lm_labels: %s\n" % (" ".join(
+        [x for x in self.masked_lm_labels]))
     s += "\n"
     return s
 
@@ -98,11 +100,14 @@ class TrainingInstance(object):
 
 
 def write_instance_to_example_files(instances, tokenizer, max_seq_length,
-                                    max_predictions_per_seq, output_files):
+                                    max_predictions_per_seq, output_files,
+                                    gzip_compress):
   """Create TF example files from `TrainingInstance`s."""
   writers = []
   for output_file in output_files:
-    writers.append(tf.python_io.TFRecordWriter(output_file))
+    writers.append(
+        tf.io.TFRecordWriter(
+            output_file, options="GZIP" if gzip_compress else ""))
 
   writer_index = 0
 
@@ -131,7 +136,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
       masked_lm_ids.append(0)
       masked_lm_weights.append(0.0)
 
-    next_sentence_label = 1 if instance.is_random_next else 0
+    sentence_order_label = 1 if instance.is_random_next else 0
 
     features = collections.OrderedDict()
     features["input_ids"] = create_int_feature(input_ids)
@@ -140,7 +145,7 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
     features["masked_lm_positions"] = create_int_feature(masked_lm_positions)
     features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
     features["masked_lm_weights"] = create_float_feature(masked_lm_weights)
-    features["next_sentence_labels"] = create_int_feature([next_sentence_label])
+    features["next_sentence_labels"] = create_int_feature([sentence_order_label])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
 
@@ -150,8 +155,8 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
     total_written += 1
 
     if inst_index < 20:
-      tf.logging.info("*** Example ***")
-      tf.logging.info("tokens: %s" % " ".join(instance.tokens))
+      logging.info("*** Example ***")
+      logging.info("tokens: %s", " ".join([x for x in instance.tokens]))
 
       for feature_name in features.keys():
         feature = features[feature_name]
@@ -160,13 +165,12 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
           values = feature.int64_list.value
         elif feature.float_list.value:
           values = feature.float_list.value
-        tf.logging.info(
-            "%s: %s" % (feature_name, " ".join([str(x) for x in values])))
+        logging.info("%s: %s", feature_name, " ".join([str(x) for x in values]))
 
   for writer in writers:
     writer.close()
 
-  tf.logging.info("Wrote %d total instances", total_written)
+  logging.info("Wrote %d total instances", total_written)
 
 
 def create_int_feature(values):
@@ -179,9 +183,15 @@ def create_float_feature(values):
   return feature
 
 
-def create_training_instances(input_files, tokenizer, max_seq_length,
-                              dupe_factor, short_seq_prob, masked_lm_prob,
-                              max_predictions_per_seq, rng):
+def create_training_instances(input_files,
+                              tokenizer,
+                              max_seq_length,
+                              dupe_factor,
+                              short_seq_prob,
+                              masked_lm_prob,
+                              max_predictions_per_seq,
+                              rng,
+                              do_whole_word_mask=False):
   """Create `TrainingInstance`s from raw text."""
   all_documents = [[]]
 
@@ -192,9 +202,9 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
   # (2) Blank lines between documents. Document boundaries are needed so
   # that the "next sentence prediction" task doesn't span between documents.
   for input_file in input_files:
-    with tf.gfile.GFile(input_file, "r") as reader:
+    with tf.io.gfile.GFile(input_file, "rb") as reader:
       while True:
-        line = reader.readline()
+        line = reader.readline().decode("utf-8", "ignore")
         if not line:
           break
         line = line.strip()
@@ -210,14 +220,15 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
   all_documents = [x for x in all_documents if x]
   rng.shuffle(all_documents)
 
-  vocab_words = list(tokenizer.vocab.keys())
+  vocab_words = list(tokenizer.get_vocab().keys())
   instances = []
   for _ in range(dupe_factor):
     for document_index in range(len(all_documents)):
       instances.extend(
           create_instances_from_document(
               all_documents, document_index, max_seq_length, short_seq_prob,
-              masked_lm_prob, max_predictions_per_seq, vocab_words, rng))
+              masked_lm_prob, max_predictions_per_seq, vocab_words, rng,
+              do_whole_word_mask))
 
   rng.shuffle(instances)
   return instances
@@ -225,7 +236,8 @@ def create_training_instances(input_files, tokenizer, max_seq_length,
 
 def create_instances_from_document(
     all_documents, document_index, max_seq_length, short_seq_prob,
-    masked_lm_prob, max_predictions_per_seq, vocab_words, rng):
+    masked_lm_prob, max_predictions_per_seq, vocab_words, rng,
+    do_whole_word_mask=False):
   """Creates `TrainingInstance`s for a single document."""
   document = all_documents[document_index]
 
@@ -323,7 +335,8 @@ def create_instances_from_document(
 
         (tokens, masked_lm_positions,
          masked_lm_labels) = create_masked_lm_predictions(
-             tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng)
+             tokens, masked_lm_prob, max_predictions_per_seq, vocab_words, rng,
+             do_whole_word_mask)
         instance = TrainingInstance(
             tokens=tokens,
             segment_ids=segment_ids,
@@ -343,7 +356,8 @@ MaskedLmInstance = collections.namedtuple("MaskedLmInstance",
 
 
 def create_masked_lm_predictions(tokens, masked_lm_prob,
-                                 max_predictions_per_seq, vocab_words, rng):
+                                 max_predictions_per_seq, vocab_words, rng,
+                                 do_whole_word_mask):
   """Creates the predictions for the masked LM objective."""
 
   cand_indexes = []
@@ -359,7 +373,7 @@ def create_masked_lm_predictions(tokens, masked_lm_prob,
     # Note that Whole Word Masking does *not* change the training code
     # at all -- we still predict each WordPiece independently, softmaxed
     # over the entire vocabulary.
-    if (FLAGS.do_whole_word_mask and len(cand_indexes) >= 1 and
+    if (do_whole_word_mask and len(cand_indexes) >= 1 and
         token.startswith("##")):
       cand_indexes[-1].append(i)
     else:
@@ -437,48 +451,43 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 
 
 def main(_):
-  tf.logging.set_verbosity(tf.logging.INFO)
-
-  if FLAGS.subword_type == "bpe":
-    tokenizer = tokenization.MecabBertTokenizer(
-      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
-      mecab_dict_path=FLAGS.mecab_dict_path)
-  elif FLAGS.subword_type == "char":
-    tokenizer = tokenization.MecabCharacterBertTokenizer(
-      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
-      mecab_dict_path=FLAGS.mecab_dict_path)
-  elif FLAGS.subword_type == "word":
-    tokenizer = tokenization.MecabBertTokenizer(
-      vocab_file=FLAGS.vocab_file, do_lower_case=FLAGS.do_lower_case,
-      do_wordpiece_tokenize=False, mecab_dict_path=FLAGS.mecab_dict_path)
-  else:
-      raise RuntimeError("Invalid subword type.")
+  assert FLAGS.tokenizer_type in ("wordpiece", "character"), FLAGS.tokenizer_type
+  assert FLAGS.mecab_dic_type in ("unidic_lite", "unidic", "ipadic"), FLAGS.mecab_dic_type
+  tokenizer = BertJapaneseTokenizerForPretraining(
+      FLAGS.vocab_file,
+      do_lower_case=False,
+      word_tokenizer_type="mecab",
+      subword_tokenizer_type=FLAGS.tokenizer_type,
+      mecab_kwargs={"mecab_dic": FLAGS.mecab_dic_type},
+      manual_subword_marking=(FLAGS.tokenizer_type == "character" and FLAGS.do_whole_word_mask)
+  )
 
   input_files = []
   for input_pattern in FLAGS.input_file.split(","):
-    input_files.extend(tf.gfile.Glob(input_pattern))
+    input_files.extend(tf.io.gfile.glob(input_pattern))
 
-  tf.logging.info("*** Reading from input files ***")
+  logging.info("*** Reading from input files ***")
   for input_file in input_files:
-    tf.logging.info("  %s", input_file)
+    logging.info("  %s", input_file)
 
   rng = random.Random(FLAGS.random_seed)
   instances = create_training_instances(
       input_files, tokenizer, FLAGS.max_seq_length, FLAGS.dupe_factor,
       FLAGS.short_seq_prob, FLAGS.masked_lm_prob, FLAGS.max_predictions_per_seq,
-      rng)
+      rng, FLAGS.do_whole_word_mask)
 
   output_files = FLAGS.output_file.split(",")
-  tf.logging.info("*** Writing to output files ***")
+  logging.info("*** Writing to output files ***")
   for output_file in output_files:
-    tf.logging.info("  %s", output_file)
+    logging.info("  %s", output_file)
 
   write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
-                                  FLAGS.max_predictions_per_seq, output_files)
+                                  FLAGS.max_predictions_per_seq, output_files,
+                                  FLAGS.gzip_compress)
 
 
 if __name__ == "__main__":
   flags.mark_flag_as_required("input_file")
   flags.mark_flag_as_required("output_file")
   flags.mark_flag_as_required("vocab_file")
-  tf.app.run()
+  app.run(main)

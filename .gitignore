@@ -123,3 +123,8 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# custom files
+unused_files/
+.gitignore
+logs.md
