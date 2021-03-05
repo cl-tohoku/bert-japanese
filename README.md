@@ -3,9 +3,9 @@
 This is a repository of pretrained Japanese BERT models.
 The models are available in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
 
-- Model hub: [https://huggingface.co/cl-tohoku]
+- Model hub: https://huggingface.co/cl-tohoku
 
-For information on the previous versions of our pretrained models, see the [v1.0](https://github.com/cl-tohoku/bert-japanese/releases/tag/v1.0) tag of this repository.
+For information on the previous versions of our pretrained models, see the [v1.0](https://github.com/cl-tohoku/bert-japanese/tree/v1.0) tag of this repository.
 
 ## Model Architecture
 
