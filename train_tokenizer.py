@@ -1,5 +1,5 @@
 # Copyright 2020 The HuggingFace Inc. team.
-# Copyright 2021 Masatoshi Suzuki (@singletongue)
+# Copyright 2023 Masatoshi Suzuki (@singletongue)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,30 +12,47 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import argparse
 
-from logzero import logger
+import argparse
+import logging
+import os
 
 from japanese_tokenizers.implementations import JapaneseWordPieceTokenizer
+
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 def main(args):
     tokenizer = JapaneseWordPieceTokenizer(
         num_unused_tokens=args.num_unused_tokens,
+        pre_tokenizer_type=args.pre_tokenizer_type,
         mecab_dic_type=args.mecab_dic_type,
     )
     speical_tokens = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "[MASK]"]
-    speical_tokens += ['<unused{}>'.format(i) for i in range(args.num_unused_tokens)]
+    speical_tokens += [f"[unused{i}]" for i in range(args.num_unused_tokens)]
+
+    if args.initial_alphabet_file is not None:
+        logger.info("Loading the initial alphabet from file")
+        initial_alphabet = [line.rstrip("\n") for line in open(args.initial_alphabet_file)]
+        logger.info("The size of the initial alphabet: %d", len(initial_alphabet))
+    else:
+        initial_alphabet = []
 
     logger.info("Training the tokenizer")
     tokenizer.train(
         args.input_files,
         vocab_size=args.vocab_size,
         limit_alphabet=args.limit_alphabet,
-        special_tokens=speical_tokens
+        initial_alphabet=initial_alphabet,
+        special_tokens=speical_tokens,
+        wordpieces_prefix=args.wordpieces_prefix,
     )
 
     logger.info("Saving the tokenizer to files")
+    os.makedirs(args.output_dir, exist_ok=True)
+
     tokenizer.save_model(args.output_dir)
 
 
@@ -43,10 +60,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_files", type=str, nargs="+", required=True)
     parser.add_argument("--output_dir", type=str, required=True)
-    parser.add_argument("--tokenizer_type", type=str, required=True)
-    parser.add_argument("--mecab_dic_type", type=str, required=True)
+    parser.add_argument("--pre_tokenizer_type", choices=("mecab", "whitespace"), required=True)
+    parser.add_argument("--mecab_dic_type", choices=("unidic_lite", "unidic", "ipadic"), default="unidic_lite")
     parser.add_argument("--vocab_size", type=int, required=True)
-    parser.add_argument("--limit_alphabet", type=int)
+    parser.add_argument("--limit_alphabet", type=int, default=1000)
+    parser.add_argument("--initial_alphabet_file", type=str)
     parser.add_argument("--num_unused_tokens", type=int, default=10)
+    parser.add_argument("--wordpieces_prefix", type=str, default="##")
     args = parser.parse_args()
     main(args)

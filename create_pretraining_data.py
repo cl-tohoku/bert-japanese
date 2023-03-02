@@ -1,5 +1,5 @@
-# Copyright 2019 The TensorFlow Authors. All Rights Reserved.
-# Copyright 2021 Masatoshi Suzuki (@singletongue)
+# Copyright 2022 The TensorFlow Authors. All Rights Reserved.
+# Copyright 2023 Masatoshi Suzuki (@singletongue)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,21 +12,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# ==============================================================================
+
 """Create masked LM/next sentence masked_lm TF examples for BERT."""
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
 
 import collections
 import random
 
+# Import libraries
 from absl import app
 from absl import flags
 from absl import logging
 import tensorflow as tf
 
-from tokenization import BertJapaneseTokenizerForPretraining
+from tokenization import BertJapaneseTokenizer
 
 FLAGS = flags.FLAGS
 
@@ -40,11 +38,22 @@ flags.DEFINE_string(
 flags.DEFINE_string("vocab_file", None,
                     "The vocabulary file that the BERT model was trained on.")
 
-flags.DEFINE_string("tokenizer_type", None,
-                    "Tokenizer type (bpe, wordpiece).")
+flags.DEFINE_bool(
+    "do_lower_case", True,
+    "Whether to lower case the input text. Should be True for uncased "
+    "models and False for cased models.")
+
+flags.DEFINE_string("word_tokenizer_type", None,
+                    "Word tokenizer type (basic, mecab).")
+
+flags.DEFINE_string("subword_tokenizer_type", None,
+                    "Tokenizer type (wordpiece, character).")
 
 flags.DEFINE_string("mecab_dic_type", None,
-                    "Pre-tokenizer type.")
+                    "Dictionary type for MecabTokenizer.")
+
+flags.DEFINE_bool("vocab_has_no_subword_prefix", False,
+                  "Whether the vocabulary contains no subword prefix.")
 
 flags.DEFINE_bool(
     "do_whole_word_mask", False,
@@ -53,6 +62,10 @@ flags.DEFINE_bool(
 flags.DEFINE_bool(
     "gzip_compress", False,
     "Whether to use `GZIP` compress option to get compressed TFRecord files.")
+
+flags.DEFINE_bool(
+    "use_v2_feature_names", False,
+    "Whether to use the feature names consistent with the models.")
 
 flags.DEFINE_integer("max_seq_length", 128, "Maximum sequence length.")
 
@@ -102,8 +115,8 @@ class TrainingInstance(object):
 
 def write_instance_to_example_files(instances, tokenizer, max_seq_length,
                                     max_predictions_per_seq, output_files,
-                                    gzip_compress):
-  """Create TF example files from `TrainingInstance`s."""
+                                    gzip_compress, use_v2_feature_names):
+  """Creates TF example files from `TrainingInstance`s."""
   writers = []
   for output_file in output_files:
     writers.append(
@@ -137,16 +150,21 @@ def write_instance_to_example_files(instances, tokenizer, max_seq_length,
       masked_lm_ids.append(0)
       masked_lm_weights.append(0.0)
 
-    sentence_order_label = 1 if instance.is_random_next else 0
+    next_sentence_label = 1 if instance.is_random_next else 0
 
     features = collections.OrderedDict()
-    features["input_ids"] = create_int_feature(input_ids)
+    if use_v2_feature_names:
+      features["input_word_ids"] = create_int_feature(input_ids)
+      features["input_type_ids"] = create_int_feature(segment_ids)
+    else:
+      features["input_ids"] = create_int_feature(input_ids)
+      features["segment_ids"] = create_int_feature(segment_ids)
+
     features["input_mask"] = create_int_feature(input_mask)
-    features["segment_ids"] = create_int_feature(segment_ids)
     features["masked_lm_positions"] = create_int_feature(masked_lm_positions)
     features["masked_lm_ids"] = create_int_feature(masked_lm_ids)
     features["masked_lm_weights"] = create_float_feature(masked_lm_weights)
-    features["next_sentence_labels"] = create_int_feature([sentence_order_label])
+    features["next_sentence_labels"] = create_int_feature([next_sentence_label])
 
     tf_example = tf.train.Example(features=tf.train.Features(feature=features))
 
@@ -452,15 +470,13 @@ def truncate_seq_pair(tokens_a, tokens_b, max_num_tokens, rng):
 
 
 def main(_):
-  assert FLAGS.tokenizer_type in ("wordpiece", "character"), FLAGS.tokenizer_type
-  assert FLAGS.mecab_dic_type in ("unidic_lite", "unidic", "ipadic"), FLAGS.mecab_dic_type
-  tokenizer = BertJapaneseTokenizerForPretraining(
+  tokenizer = BertJapaneseTokenizer(
       FLAGS.vocab_file,
-      do_lower_case=False,
-      word_tokenizer_type="mecab",
-      subword_tokenizer_type=FLAGS.tokenizer_type,
+      do_lower_case=FLAGS.do_lower_case,
+      word_tokenizer_type=FLAGS.word_tokenizer_type,
+      subword_tokenizer_type=FLAGS.subword_tokenizer_type,
       mecab_kwargs={"mecab_dic": FLAGS.mecab_dic_type},
-      manual_subword_marking=(FLAGS.tokenizer_type == "character" and FLAGS.do_whole_word_mask)
+      vocab_has_no_subword_prefix=FLAGS.vocab_has_no_subword_prefix,
   )
 
   input_files = []
@@ -484,7 +500,8 @@ def main(_):
 
   write_instance_to_example_files(instances, tokenizer, FLAGS.max_seq_length,
                                   FLAGS.max_predictions_per_seq, output_files,
-                                  FLAGS.gzip_compress)
+                                  FLAGS.gzip_compress,
+                                  FLAGS.use_v2_feature_names)
 
 
 if __name__ == "__main__":

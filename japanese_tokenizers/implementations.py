@@ -1,5 +1,5 @@
 # Copyright 2020 The HuggingFace Inc. team.
-# Copyright 2021 Masatoshi Suzuki (@singletongue).
+# Copyright 2023 Masatoshi Suzuki (@singletongue).
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 from typing import Dict, Optional, Union
 
 from tokenizers import AddedToken, normalizers, pre_tokenizers
@@ -30,6 +31,7 @@ class JapaneseWordPieceTokenizer(BertWordPieceTokenizer):
         pad_token: Union[str, AddedToken] = "[PAD]",
         mask_token: Union[str, AddedToken] = "[MASK]",
         num_unused_tokens: int = 10,
+        pre_tokenizer_type: str = "mecab",
         mecab_dic_type: str = "unidic_lite",
         wordpieces_prefix: str = "##",
     ) -> None:
@@ -42,18 +44,22 @@ class JapaneseWordPieceTokenizer(BertWordPieceTokenizer):
             mask_token=mask_token,
             wordpieces_prefix=wordpieces_prefix,
         )
-        self._tokenizer.add_special_tokens(['<unused{}>'.format(i) for i in range(num_unused_tokens)])
+        self._tokenizer.add_special_tokens([f"[unused{i}]" for i in range(num_unused_tokens)])
 
         self._tokenizer.normalizer = normalizers.Sequence([normalizers.NFKC(), normalizers.Strip()])
-        if mecab_dic_type in ("unidic_lite", "unidic", "ipadic"):
+
+        parameters = {
+            "model": "BertWordPieceJapaneseTokenizer",
+            "pre_tokenizer_type": pre_tokenizer_type,
+            "mecab_dic_type": mecab_dic_type,
+        }
+
+        if pre_tokenizer_type == "mecab":
             self._tokenizer.pre_tokenizer = pre_tokenizers.PreTokenizer.custom(MeCabPreTokenizer(mecab_dic_type))
-        elif mecab_dic_type == "whitespace":
+            parameters["mecab_dic_type"] = mecab_dic_type
+        elif pre_tokenizer_type == "whitespace":
             self._tokenizer.pre_tokenizer = pre_tokenizers.WhitespaceSplit()
         else:
             raise ValueError("Invalid pre_tokenizer_type is specified.")
 
-        parameters = {
-            "model": "BertWordPieceJapaneseTokenizer",
-            "mecab_dic_type": mecab_dic_type,
-        }
         self._parameters.update(parameters)

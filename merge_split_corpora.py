@@ -1,4 +1,4 @@
-# Copyright 2021 Masatoshi Suzuki (@singletongue)
+# Copyright 2023 Masatoshi Suzuki (@singletongue)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,15 +11,30 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import argparse
+import gzip
+import logging
+import lzma
 import os
 import random
 
-from logzero import logger
 from tqdm import tqdm
 
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 random.seed(0)
+
+
+def _open_file(filename):
+    if filename.endswith(".xz"):
+        return lzma.open(filename, "rt")
+    elif filename.endswith(".gz"):
+        return gzip.open(filename, "rt")
+    else:
+        return open(filename)
 
 
 def main(args):
@@ -32,14 +47,17 @@ def main(args):
     output_index = random.randint(1, args.num_files)
 
     for input_path in args.input_files:
-        logger.info(f"Reading {input_path}")
-        with open(input_path, "r") as f:
+        logger.info("Processing %s", input_path)
+        with _open_file(input_path) as f:
             for line in tqdm(f):
-                line = line.rstrip("\n")
+                line = " ".join(line.strip().split())
                 print(line, file=output_files[output_index])
 
                 if line == "":
                     output_index = random.randrange(args.num_files)
+
+    for output_file in output_files:
+        output_file.close()
 
 
 if __name__ == "__main__":

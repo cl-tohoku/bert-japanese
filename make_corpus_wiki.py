@@ -1,4 +1,4 @@
-# Copyright 2021 Masatoshi Suzuki (@singletongue)
+# Copyright 2023 Masatoshi Suzuki (@singletongue)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -11,6 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+
 import argparse
 import gzip
 import json
@@ -21,14 +22,14 @@ import unicodedata
 from tqdm import tqdm
 
 
-class MeCabSentenceSplitter(object):
+class MeCabSentenceSplitter:
     def __init__(self, mecab_option=None):
         import fugashi
         if mecab_option is None:
             import unidic_lite
             dic_dir = unidic_lite.DICDIR
             mecabrc = os.path.join(dic_dir, "mecabrc")
-            mecab_option = "-d {} -r {}".format(dic_dir, mecabrc)
+            mecab_option = f"-d {dic_dir} -r {mecabrc}"
 
         self.mecab = fugashi.GenericTagger(mecab_option)
 
@@ -49,6 +50,14 @@ class MeCabSentenceSplitter(object):
                 start = end
 
         return sentences
+
+
+def filter_text(text):
+    # filter out text containing equations
+    if "\displaystyle" in text:
+        return False
+
+    return True
 
 
 def preprocess_text(text, title=None):
@@ -75,53 +84,45 @@ def preprocess_text(text, title=None):
     return text
 
 
-def filter_text(text):
-    # filter out text containing equations
-    if "\displaystyle" in text:
-        return False
-
-    return True
-
-
 def main(args):
     sent_splitter = MeCabSentenceSplitter(args.mecab_option)
 
-    with gzip.open(args.input_file, "rt") as input_file, \
-         open(args.output_file, "w") as output_file:
-        for line in tqdm(input_file):
-            json_item = json.loads(line)
-            text = json_item.get("text")
-            if text is None:
+    with gzip.open(args.input_file, "rt") as f, gzip.open(args.output_file, "wt") as fo:
+        for line in tqdm(f):
+            item = json.loads(line)
+            if "index" in item:
                 continue
 
-            title = json_item.get("title")
+            title = item["title"]
+            text = item["text"]
             text = preprocess_text(text, title=title)
 
             is_processed = False
             for sentence in sent_splitter(text):
                 sentence = sentence.strip()
-                if len(sentence) < args.min_text_length:
+                if len(sentence) < args.min_sentence_length:
                     continue
-                if len(sentence) > args.max_text_length:
+                if len(sentence) > args.max_sentence_length:
                     continue
                 if not filter_text(sentence):
                     continue
 
                 assert not "\n" in text
                 assert sentence != ""
-                print(sentence, file=output_file)
+                print(sentence, file=fo)
                 is_processed = True
 
             if is_processed:
-                print("", file=output_file)
+                # insert a newline for separating pages
+                print("", file=fo)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--input_file", type=str, required=True)
     parser.add_argument("--output_file", type=str, required=True)
-    parser.add_argument("--min_text_length", type=int, default=10)
-    parser.add_argument("--max_text_length", type=int, default=1000)
     parser.add_argument("--mecab_option", type=str)
+    parser.add_argument("--min_sentence_length", type=int, default=10)
+    parser.add_argument("--max_sentence_length", type=int, default=1000)
     args = parser.parse_args()
     main(args)
