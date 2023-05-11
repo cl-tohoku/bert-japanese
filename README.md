@@ -371,37 +371,37 @@ $ VOCAB_FILE=$WORK_DIR/tokenizers/wordpiece_unidic_lite/vocab.txt
 $ TF_CONFIG_FILE=model_configs/bert_base_wordpiece/config.json
 $ HF_CONFIG_DIR=hf_model_configs/bert_base_wordpiece
 $ TF_CKPT_PATH=$WORK_DIR/model/wordpiece_unidic_lite/bert_base/training/cc-100_wikipedia/ckpt-1000000
-$ OUTPUT_DIR=$WORK_DIR/hf_model/wordpiece_unidic_lite/bert_base
+$ OUTPUT_DIR=$WORK_DIR/hf_model/bert-base-japanese-v3
 
 # For BERT-base, Character
 $ VOCAB_FILE=$WORK_DIR/tokenizers/character_unidic_lite/vocab.txt
 $ TF_CONFIG_FILE=model_configs/bert_base_character/config.json
 $ HF_CONFIG_DIR=hf_model_configs/bert_base_character
 $ TF_CKPT_PATH=$WORK_DIR/model/character_unidic_lite/bert_base/training/cc-100_wikipedia/ckpt-1000000
-$ OUTPUT_DIR=$WORK_DIR/hf_model/character_unidic_lite/bert_base
+$ OUTPUT_DIR=$WORK_DIR/hf_model/bert-base-japanese-char-v3
 
 # For BERT-large, WordPiece
 $ VOCAB_FILE=$WORK_DIR/tokenizers/wordpiece_unidic_lite/vocab.txt
 $ TF_CONFIG_FILE=model_configs/bert_large_wordpiece/config.json
 $ HF_CONFIG_DIR=hf_model_configs/bert_large_wordpiece
 $ TF_CKPT_PATH=$WORK_DIR/model/wordpiece_unidic_lite/bert_large/training/cc-100_wikipedia/ckpt-1000000
-$ OUTPUT_DIR=$WORK_DIR/hf_model/wordpiece_unidic_lite/bert_large
+$ OUTPUT_DIR=$WORK_DIR/hf_model/bert-large-japanese-v2
 
 # For BERT-large, Character
 $ VOCAB_FILE=$WORK_DIR/tokenizers/character_unidic_lite/vocab.txt
 $ TF_CONFIG_FILE=model_configs/bert_large_character/config.json
 $ HF_CONFIG_DIR=hf_model_configs/bert_large_character
 $ TF_CKPT_PATH=$WORK_DIR/model/character_unidic_lite/bert_large/training/cc-100_wikipedia/ckpt-1000000
-$ OUTPUT_DIR=$WORK_DIR/hf_model/character_unidic_lite/bert_large
+$ OUTPUT_DIR=$WORK_DIR/hf_model/bert-large-japanese-char-v2
 
 # Run the model conversion script
 $ mkdir -p $OUTPUT_DIR
+$ python convert_tf2_checkpoint_to_all_frameworks.py \
+--tf_checkpoint_path $TF_CKPT_PATH \
+--tf_config_file $TF_CONFIG_FILE \
+--output_path $OUTPUT_DIR
 $ cp $HF_CONFIG_DIR/* $OUTPUT_DIR
 $ cp $VOCAB_FILE $OUTPUT_DIR
-$ python convert_original_tf2_checkpoint_to_pytorch.py \
---tf_checkpoint_path $TF_CKPT_PATH \
---pytorch_dump_path $OUTPUT_DIR/pytorch_model.bin \
---config_file $TF_CONFIG_FILE
 ```
 
 ## Model Performances

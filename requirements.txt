@@ -1,3 +1,4 @@
+flax==0.6.10
 fugashi==1.2.1
 ipadic==1.0.0
 tensorflow==2.11.0

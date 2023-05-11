@@ -1,4 +1,3 @@
-# Copyright 2018 The HuggingFace Inc. team.
 # Copyright 2023 Masatoshi Suzuki (@singletongue)
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -21,7 +20,7 @@ import re
 import tensorflow as tf
 import torch
 
-from transformers import BertConfig, BertForPreTraining
+from transformers import BertConfig, BertForPreTraining, FlaxBertForPreTraining, TFBertForPreTraining
 
 
 logging.basicConfig(level=logging.INFO)
@@ -238,19 +237,29 @@ def load_tf2_weights_in_bert(model, tf_checkpoint_path, config):
     return model
 
 
-def convert_tf2_checkpoint_to_pytorch(tf_checkpoint_path, config_path, pytorch_dump_path):
+def convert_tf2_checkpoint_to_pytorch(tf_checkpoint_path, tf_config_path, output_path):
     # Initialize PyTorch model
-    logger.info("Loading model based on config from %s...", config_path)
-    config = BertConfig.from_json_file(config_path)
+    logger.info("Loading model based on config from %s...", tf_config_path)
+    config = BertConfig.from_json_file(tf_config_path)
     model = BertForPreTraining(config)
 
     # Load weights from tf checkpoint
     logger.info("Loading weights from checkpoint %s...", tf_checkpoint_path)
     load_tf2_weights_in_bert(model, tf_checkpoint_path, config)
 
-    # Save pytorch-model
-    logger.info("Saving PyTorch model to %s...", pytorch_dump_path)
-    torch.save(model.state_dict(), pytorch_dump_path)
+    # Save the model in PyTorch format
+    logger.info("Saving PyTorch model to %s...", output_path)
+    model.save_pretrained(output_path)
+
+    # Save the model in TensorFlow format
+    logger.info("Reloading the saved model in TensorFlow format and saving to %s...", output_path)
+    tf_model = TFBertForPreTraining.from_pretrained(output_path, from_pt=True)
+    tf_model.save_pretrained(output_path)
+
+    # Save the model in JAX/Flax format
+    logger.info("Reloading the saved model in JAX/Flax format and saving to %s...", output_path)
+    flax_model = FlaxBertForPreTraining.from_pretrained(output_path, from_pt=True)
+    flax_model.save_pretrained(output_path)
 
 
 if __name__ == "__main__":
@@ -259,16 +268,16 @@ if __name__ == "__main__":
         "--tf_checkpoint_path", type=str, required=True, help="Path to the TensorFlow 2.x checkpoint path."
     )
     parser.add_argument(
-        "--config_file",
+        "--tf_config_file",
         type=str,
         required=True,
         help="The config json file corresponding to the BERT model. This specifies the model architecture.",
     )
     parser.add_argument(
-        "--pytorch_dump_path",
+        "--output_path",
         type=str,
         required=True,
         help="Path to the output PyTorch model (must include filename).",
     )
     args = parser.parse_args()
-    convert_tf2_checkpoint_to_pytorch(args.tf_checkpoint_path, args.config_file, args.pytorch_dump_path)
+    convert_tf2_checkpoint_to_pytorch(args.tf_checkpoint_path, args.tf_config_file, args.output_path)
