@@ -1,4 +1,6 @@
 {
+    "tokenizer_class": "BertJapaneseTokenizer",
+    "model_max_length": 512,
     "do_lower_case": false,
     "word_tokenizer_type": "mecab",
     "subword_tokenizer_type": "character",
