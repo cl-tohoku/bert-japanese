@@ -1,7 +1,7 @@
 flax==0.6.10
 fugashi==1.2.1
 ipadic==1.0.0
-tensorflow==2.11.0
+tensorflow==2.11.1
 tqdm==4.64.1
 tokenizers==0.13.2
 torch==1.13.1
