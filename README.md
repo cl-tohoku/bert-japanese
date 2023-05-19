@@ -39,7 +39,7 @@ For Wikipedia, we generated a text corpus from the [Wikipedia Cirrussearch dump 
 
 The corpus files generated from CC-100 and Wikipedia are 74.3GB and 4.9GB in size and consist of approximately 392M and 34M sentences, respectively.
 
-For the purpose of splitting texts into sentences, we used [`fugashi`](https://github.com/polm/fugashi) with [mecab-ipadic-NEologd](https://github.com/neologd/mecab-ipadic-neologd) dictionary (v0.0.7).
+For the purpose of splitting texts into sentences, we used [fugashi](https://github.com/polm/fugashi) with [mecab-ipadic-NEologd](https://github.com/neologd/mecab-ipadic-neologd) dictionary (v0.0.7).
 
 ### Generating corpus files
 
@@ -77,7 +77,7 @@ For each of BERT-base and BERT-large, we provide two models with different token
 - For **`character`** models, the texts are first tokenized by MeCab with the Unidic 2.1.2 dictionary and then split into characters.
   The vocabulary size is 7027, which covers all the characters present in Unidic 2.1.2 dictionary.
 
-We used [`unidic-lite`](https://github.com/polm/unidic-lite) dictionary for tokenization.
+We used [unidic-lite](https://github.com/polm/unidic-lite) dictionary for tokenization.
 
 ### Generating a set of characters
 
@@ -406,26 +406,25 @@ $ cp $VOCAB_FILE $OUTPUT_DIR
 
 ## Model Performances
 
-We evaluated the models' performances on the [JGLUE](https://github.com/yahoojapan/JGLUE) benchmark tasks.
+We evaluated our models' performances on the [JGLUE](https://github.com/yahoojapan/JGLUE) benchmark tasks.
 
 For each task, the model is fine-tuned on the training set and evaluated on the development set (the test sets are not publicly available as of this writing.)
-We used the same hyperparameters as the ones specified in the [JGLUE fine-tuning README](https://github.com/yahoojapan/JGLUE/tree/main/fine-tuning).
+The hyperparameters were searched within the same set of values as the ones specified in the [JGLUE fine-tuning README](https://github.com/yahoojapan/JGLUE/tree/main/fine-tuning).
 
 The results of our (informal) experiments are below.
-Since each setting is experimented with only once (random seed is fixed), these results should be viewed only as a reference.
+**Note:** These results should be viewed as informative only, since each setting was experimented with only one fixed random seed.
 
 |              Model                     | MARC-ja |        JSTS        | JNLI  |    JSQuAD     | JCommonsenseQA |
 | :------------------------------------- | :-----: | :----------------: | :---: | :-----------: | :------------: |
 |                                        |   Acc.  | Pearson / Spearman |  Acc. |    EM / F1    |       Acc.     |
-| `bert-base-japanese-v2`                |  0.952  |   0.907 / 0.867    | 0.897 | 0.873 / 0.941 |      0.802     |
-| `bert-base-japanese-char-v2`           |  0.954  |   0.872 / 0.893    | 0.892 | 0.862 / 0.936 |      0.720     |
-| `bert-large-japanese`                  |  0.955  |   0.910 / 0.871    | 0.901 | 0.873 / 0.943 |      0.803     |
-| `bert-large-japanese-char`             |  0.956  |   0.874 / 0.834    | 0.899 | 0.871 / 0.940 |      0.741     |
-|                                        |         |                    |       |               |                |
-| `bert-base-japanese-v3` **New!**       |  0.960  |   0.915 / 0.878    | 0.906 | 0.880 / 0.947 |      0.837     |
-| `bert-base-japanese-char-v3` **New!**  |  0.955  |   0.912 / 0.875    | 0.899 | 0.865 / 0.937 |      0.775     |
-| `bert-large-japanese-v2` **New!**      |  0.960  |   0.927 / 0.893    | 0.927 | 0.889 / 0.954 |      0.891     |
-| `bert-large-japanese-char-v2` **New!** |  0.959  |   0.918 / 0.881    | 0.909 | 0.888 / 0.950 |      0.854     |
+| `bert-base-japanese-v2`                |  0.958  |   0.910 / 0.871    | 0.901 | 0.869 / 0.939 |      0.803     |
+| `bert-base-japanese-v3` **New!**       |  0.962  |   0.919 / 0.881    | 0.907 | 0.880 / 0.946 |      0.848     |
+| `bert-base-japanese-char-v2`           |  0.957  |   0.891 / 0.851    | 0.896 | 0.870 / 0.938 |      0.724     |
+| `bert-base-japanese-char-v3` **New!**  |  0.959  |   0.914 / 0.875    | 0.903 | 0.871 / 0.939 |      0.786     |
+| `bert-large-japanese`                  |  0.958  |   0.913 / 0.874    | 0.902 | 0.881 / 0.946 |      0.823     |
+| `bert-large-japanese-v2` **New!**      |  0.960  |   0.926 / 0.893    | 0.929 | 0.893 / 0.956 |      0.893     |
+| `bert-large-japanese-char`             |  0.958  |   0.883 / 0.842    | 0.899 | 0.870 / 0.938 |      0.753     |
+| `bert-large-japanese-char-v2` **New!** |  0.961  |   0.921 / 0.884    | 0.910 | 0.892 / 0.952 |      0.859     |
 
 ## Licenses
 
