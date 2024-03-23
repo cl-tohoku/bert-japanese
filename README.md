@@ -3,28 +3,28 @@
 This is a repository of pretrained Japanese BERT models.
 The models are available in [Transformers](https://github.com/huggingface/transformers) by Hugging Face.
 
-- Model hub: https://huggingface.co/cl-tohoku
+- Model hub: https://huggingface.co/tohoku-nlp
 
 This version of README contains information for the following models:
 
-- [`cl-tohoku/bert-base-japanese-v3`](https://huggingface.co/cl-tohoku/bert-base-japanese-v3)
-- [`cl-tohoku/bert-base-japanese-char-v3`](https://huggingface.co/cl-tohoku/bert-base-japanese-char-v3)
-- [`cl-tohoku/bert-large-japanese-v2`](https://huggingface.co/cl-tohoku/bert-large-japanese-v2)
-- [`cl-tohoku/bert-large-japanese-char-v2`](https://huggingface.co/cl-tohoku/bert-large-japanese-char-v2)
+- [`tohoku-nlp/bert-base-japanese-v3`](https://huggingface.co/tohoku-nlp/bert-base-japanese-v3)
+- [`tohoku-nlp/bert-base-japanese-char-v3`](https://huggingface.co/tohoku-nlp/bert-base-japanese-char-v3)
+- [`tohoku-nlp/bert-large-japanese-v2`](https://huggingface.co/tohoku-nlp/bert-large-japanese-v2)
+- [`tohoku-nlp/bert-large-japanese-char-v2`](https://huggingface.co/tohoku-nlp/bert-large-japanese-char-v2)
 
 For information and codes for the following models, refer to the [v2.0](https://github.com/cl-tohoku/bert-japanese/tree/v2.0) tag of this repository:
 
-- [`cl-tohoku/bert-base-japanese-v2`](https://huggingface.co/cl-tohoku/bert-base-japanese-v2)
-- [`cl-tohoku/bert-base-japanese-char-v2`](https://huggingface.co/cl-tohoku/bert-base-japanese-char-v2)
-- [`cl-tohoku/bert-large-japanese`](https://huggingface.co/cl-tohoku/bert-large-japanese)
-- [`cl-tohoku/bert-large-japanese-char`](https://huggingface.co/cl-tohoku/bert-large-japanese-char)
+- [`tohoku-nlp/bert-base-japanese-v2`](https://huggingface.co/tohoku-nlp/bert-base-japanese-v2)
+- [`tohoku-nlp/bert-base-japanese-char-v2`](https://huggingface.co/tohoku-nlp/bert-base-japanese-char-v2)
+- [`tohoku-nlp/bert-large-japanese`](https://huggingface.co/tohoku-nlp/bert-large-japanese)
+- [`tohoku-nlp/bert-large-japanese-char`](https://huggingface.co/tohoku-nlp/bert-large-japanese-char)
 
 For information and codes for the following models, refer to the [v1.0](https://github.com/cl-tohoku/bert-japanese/tree/v1.0) tag of this repository:
 
-- [`cl-tohoku/bert-base-japanese`](https://huggingface.co/cl-tohoku/bert-base-japanese)
-- [`cl-tohoku/bert-base-japanese-whole-word-masking`](https://huggingface.co/cl-tohoku/bert-base-japanese-whole-word-masking)
-- [`cl-tohoku/bert-base-japanese-char`](https://huggingface.co/cl-tohoku/bert-base-japanese-char)
-- [`cl-tohoku/bert-base-japanese-char-whole-word-masking`](https://huggingface.co/cl-tohoku/bert-base-japanese-char-whole-word-masking)
+- [`tohoku-nlp/bert-base-japanese`](https://huggingface.co/tohoku-nlp/bert-base-japanese)
+- [`tohoku-nlp/bert-base-japanese-whole-word-masking`](https://huggingface.co/tohoku-nlp/bert-base-japanese-whole-word-masking)
+- [`tohoku-nlp/bert-base-japanese-char`](https://huggingface.co/tohoku-nlp/bert-base-japanese-char)
+- [`tohoku-nlp/bert-base-japanese-char-whole-word-masking`](https://huggingface.co/tohoku-nlp/bert-base-japanese-char-whole-word-masking)
 
 ## Model Architecture
 
